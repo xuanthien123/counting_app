@@ -1,0 +1,15 @@
+object Versions {
+    const val compose = "1.4.3"
+    const val composeMaterial3 = "1.1.1"
+    const val composeCompiler = "1.4.6"
+    const val composeBom = "2024.02.00"
+    const val navigation = "2.7.7"
+    const val lifecycle = "2.7.0"
+    const val room = "2.6.1"
+    const val hilt = "2.50"
+    const val okHttp = "5.0.0-alpha.2"
+    const val retrofit = "2.9.0"
+    const val coroutines = "1.7.3"
+    const val coil = "2.6.0"
+    const val accompanist = "0.33.2-alpha"
+}
