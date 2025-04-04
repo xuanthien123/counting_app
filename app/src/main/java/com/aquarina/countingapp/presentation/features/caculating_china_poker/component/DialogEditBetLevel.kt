@@ -20,6 +20,7 @@ import com.aquarina.countingapp.presentation.features.caculating_china_poker.Per
 @Composable
 fun DialogWidgetBetLevel(viewModel: PersonsViewModel = hiltViewModel()) : Unit {
     var name: String by remember { mutableStateOf("") }
+    name = viewModel.betLevel.value.toString()
     val showDialog = viewModel.showDialogBetLevel.value
     if (showDialog) {
         AlertDialog(

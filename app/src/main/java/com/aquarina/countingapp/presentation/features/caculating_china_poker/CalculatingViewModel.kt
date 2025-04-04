@@ -1,5 +1,6 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker
 
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +44,7 @@ class PersonsViewModel @Inject constructor(
     var gameInfo: GameInfo? = null
 
     init {
-        viewModelScope.launch{
+        viewModelScope.launch {
             getGameInfo()
             getPersons()
         }
@@ -123,7 +124,12 @@ class PersonsViewModel @Inject constructor(
             return
         }
         val person: PersonEvent =
-            PersonEvent.CreatePerson(person = Person(name = name, total = 0, stages = emptyList()))
+            PersonEvent.CreatePerson(
+                person = Person(
+                    name = name,
+                    total = 0,
+                    stages = List(size = numberOfStage.value) { 0 })
+            )
         onEvent(person)
     }
 
@@ -144,7 +150,9 @@ class PersonsViewModel @Inject constructor(
         val value: Int = name.toInt()
         _betLevel.value = value
         viewModelScope.launch {
-            personUseCases.updateGameInfo(gameInfo?.copy(betLevel = value)?: GameInfo(betLevel = value))
+            personUseCases.updateGameInfo(
+                gameInfo?.copy(betLevel = value) ?: GameInfo(betLevel = value)
+            )
         }
     }
 
@@ -163,13 +171,40 @@ class PersonsViewModel @Inject constructor(
 
     private val _showDialogEditStage = mutableStateOf(false)
     val showDialogEditStage: State<Boolean> = _showDialogEditStage
-    var listWinLose: MutableList<Int> = mutableListOf()
+    var listWinLose: MutableList<String> = mutableListOf()
+    var stage: Int = 1
+    var listWinLoseState: MutableState<List<String>> = mutableStateOf(List(4) { "" })
+
+    fun showDialogEditStage(value: Boolean) {
+        _showDialogEditStage.value = value
+    }
 
     fun showEditStage(stage: Int) {
+        this.stage = stage;
+        listWinLose.clear()
         for (person in state.value.persons) {
-            listWinLose.add(person.stages[stage])
+            listWinLose.add(person.stages[stage].toString())
         }
+        listWinLoseState.value = listWinLose
+        Log.d("NameInput", "stage: $listWinLose")
         _showDialogEditStage.value = true
+    }
+
+    fun updateStage() {
+        for (index in 0 until listWinLoseState.value.size) {
+            val listStages: MutableList<Int> = state.value.persons[index].stages.toMutableList()
+            listStages[stage] = listWinLoseState.value[index].toIntOrNull() ?: 0
+            Log.d("NameInput", "stage: ${listStages[stage]}")
+            Log.d("NameInput", "stage: ${state.value.persons[index].copy(stages = listStages)}")
+            onEvent(
+                PersonEvent.UpdatePerson(
+                    person = state.value.persons[index].copy(
+                        stages = listStages,
+                        total = listStages.sum()
+                    )
+                )
+            )
+        }
     }
 
 }
