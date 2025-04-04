@@ -51,8 +51,9 @@ fun CalculatingScreen(navController: NavController, viewModel: PersonsViewModel 
             }
         })
     }) { padding ->
-        Box(
-            modifier = Modifier.padding(padding).pointerInput(Unit) {
+        Box(modifier = Modifier
+            .padding(padding)
+            .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -62,8 +63,7 @@ fun CalculatingScreen(navController: NavController, viewModel: PersonsViewModel 
                         }
                     }
                 }
-            }
-        ) {
+            }) {
             Column {
                 Row(
                     modifier = Modifier
