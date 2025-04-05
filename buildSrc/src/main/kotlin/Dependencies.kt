@@ -52,7 +52,7 @@ object Dependencies {
     }
 
     object Testing {
-        const val junit4 = "androidx.compose.ui:ui-test-junit4"
+        const val junit4 = "androidx.compose.ui:ui-test-junit4:1.0.5"
     }
 }
 

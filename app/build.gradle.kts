@@ -19,9 +19,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("key-app.jks")  // Đường dẫn tới keystore
+            storePassword = "thien123"  // Mật khẩu của keystore
+            keyAlias = "key-app"  // Tên alias của key
+            keyPassword = "thien123"  // Mật khẩu của key
+        }
+    }
+
     buildTypes {
-        release {
-            isMinifyEnabled = false
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")  // Áp dụng signing config cho release
+            isMinifyEnabled = false  // Tắt ProGuard/R8 nếu không muốn tối ưu hóa mã
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

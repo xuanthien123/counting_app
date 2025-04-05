@@ -194,8 +194,6 @@ class PersonsViewModel @Inject constructor(
         for (index in 0 until listWinLoseState.value.size) {
             val listStages: MutableList<Int> = state.value.persons[index].stages.toMutableList()
             listStages[stage] = listWinLoseState.value[index].toIntOrNull() ?: 0
-            Log.d("NameInput", "stage: ${listStages[stage]}")
-            Log.d("NameInput", "stage: ${state.value.persons[index].copy(stages = listStages)}")
             onEvent(
                 PersonEvent.UpdatePerson(
                     person = state.value.persons[index].copy(
@@ -207,4 +205,37 @@ class PersonsViewModel @Inject constructor(
         }
     }
 
+    private val _showConfirmDialog = mutableStateOf(false)
+    val showConfirmDialog: State<Boolean> = _showConfirmDialog
+    var title: String = "Xác nhận"
+    var content: String = ""
+    var function: () -> Unit = {}
+    fun closeConfirmDialog() {
+        _showConfirmDialog.value = false
+    }
+
+    fun showConfirmDialog(title: String, content: String, function: () -> Unit) {
+        this.title = title
+        this.content = content
+        this.function = function
+        _showConfirmDialog.value = true
+
+    }
+
+    fun getAchievement(value: Int) : String {
+        return when {
+            value >= 75 -> return "🐐"
+            value in 50 until 75 -> "👑"
+            value in 30 until 50 -> "🥇"
+            value in 15 until 30 -> "🥈"
+            value in 1 until 15 -> "🥉"
+            value == 0 -> return ""
+            value in -14 until 0 -> "🐔"
+            value in -29 until -14 -> "🤮"
+            value in -49 until -29 -> "💩"
+            value in -74 until -49 -> "🏦"
+            else -> "⚰️"
+
+        }
+    }
 }
