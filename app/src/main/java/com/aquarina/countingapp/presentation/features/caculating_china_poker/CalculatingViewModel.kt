@@ -11,11 +11,16 @@ import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.usecase.PersonUseCases
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
 
 @HiltViewModel
 class PersonsViewModel @Inject constructor(
@@ -43,10 +48,15 @@ class PersonsViewModel @Inject constructor(
 
     var gameInfo: GameInfo? = null
 
+    private val _initLoad = mutableStateOf(false)
+    val initload: State<Boolean> = _initLoad
+
     init {
         viewModelScope.launch {
+            delay(50.milliseconds)
             getGameInfo()
             getPersons()
+            _initLoad.value = true
         }
     }
 
@@ -165,7 +175,7 @@ class PersonsViewModel @Inject constructor(
 
     fun refreshData() {
         for (person in state.value.persons) {
-            onEvent(PersonEvent.UpdatePerson(person = person.copy(stages = emptyList())))
+            onEvent(PersonEvent.UpdatePerson(person = person.copy(stages = emptyList(), total = 0)))
         }
     }
 
@@ -182,10 +192,16 @@ class PersonsViewModel @Inject constructor(
     fun showEditStage(stage: Int) {
         this.stage = stage;
         listWinLose.clear()
+        var isInit = true
         for (person in state.value.persons) {
             listWinLose.add(person.stages[stage].toString())
+            if (person.stages[stage] != 0) isInit = false
         }
-        listWinLoseState.value = listWinLose
+        if (isInit) {
+            listWinLoseState.value = List(state.value.persons.size) { "" }
+        } else {
+            listWinLoseState.value = listWinLose
+        }
         Log.d("NameInput", "stage: $listWinLose")
         _showDialogEditStage.value = true
     }
@@ -222,7 +238,7 @@ class PersonsViewModel @Inject constructor(
 
     }
 
-    fun getAchievement(value: Int) : String {
+    fun getAchievement(value: Int): String {
         return when {
             value >= 75 -> return "🐐"
             value in 50 until 75 -> "👑"

@@ -38,6 +38,7 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
     val showDialog = viewModel.showDialogEditStage.value
     val persons = viewModel.state.value.persons
     val focusManager = LocalFocusManager.current
+
     Log.d("NameInput", "stage: ${listWinLoseState.value}")
     if (showDialog) {
         AlertDialog(
@@ -65,6 +66,7 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                             shape = RoundedCornerShape(12.dp), // 👈 Bo góc nè
                             colors = TextFieldDefaults.colors(
                                 unfocusedIndicatorColor = Color.Transparent,
+                                unfocusedLabelColor = Color.Gray
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()

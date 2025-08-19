@@ -1,5 +1,8 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker
 
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,47 +21,72 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.aquarina.countingapp.presentation.components.formatToReadable
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.component.*
+import com.aquarina.countingapp.presentation.navigation.Screen
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun CalculatingScreen(navController: NavController, viewModel: PersonsViewModel = hiltViewModel()) {
+fun SharedTransitionScope.CalculatingScreen(
+    navController: NavController,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedContentScope: AnimatedContentScope,
+    viewModel: PersonsViewModel = hiltViewModel(),
+) {
     val state = viewModel.state.value
     val showDialog = viewModel.showDialog.value
     val betLevel = viewModel.betLevel.value
     val focusManager = LocalFocusManager.current
-    val scaffoldState = rememberBottomSheetScaffoldState()
-    val scope = rememberCoroutineScope()
-    Scaffold(topBar = {
-        TopAppBar(title = { Text(text = "Tính tiền Binh") }, actions = {
-            IconButton(onClick = {
-                viewModel.showConfirmDialog(content = "Bạn có chắc chắn muốn làm mới toàn bộ lịch sử chơi (sẽ mất số tiền hiện tại)",
-                    title = "Đặt lại",
-                    function = { viewModel.refreshData() })
-            }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Làm mới")
-            }
-        })
-    }) { padding ->
-        Box(modifier = Modifier
-            .padding(padding)
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        // Chỉ clear focus nếu không đụng vào input nào
-                        if (event.changes.any { it.pressed }) {
-                            focusManager.clearFocus()
+    val initLoad = viewModel.initload.value
+    Scaffold(
+        modifier = Modifier.sharedElement(
+            sharedTransitionScope.rememberSharedContentState(key = "screen-${Screen.Calculating.route}"),
+            animatedVisibilityScope = animatedContentScope
+        ),
+        topBar = {
+            TopAppBar(title = {
+                Text(
+                    text = "Tính tiền Binh",
+                    style = TextStyle(fontWeight = FontWeight.W500, fontSize = 18.sp),
+                    modifier = Modifier.sharedElement(
+                        sharedTransitionScope.rememberSharedContentState(key = "text-${Screen.Calculating.route}"),
+                        animatedVisibilityScope = animatedContentScope
+                    )
+                )
+            }, actions = {
+                IconButton(onClick = {
+                    viewModel.showConfirmDialog(
+                        content = "Bạn có chắc chắn muốn làm mới toàn bộ lịch sử chơi (sẽ mất số tiền hiện tại)",
+                        title = "Đặt lại",
+                        function = { viewModel.refreshData() })
+                }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Làm mới")
+                }
+            })
+        }) { padding ->
+        if (initLoad)
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            // Chỉ clear focus nếu không đụng vào input nào
+                            if (event.changes.any { it.pressed }) {
+                                focusManager.clearFocus()
+                            }
                         }
                     }
-                }
-            }) {
+                }) {
             Column {
                 Row(
                     modifier = Modifier
@@ -81,8 +109,8 @@ fun CalculatingScreen(navController: NavController, viewModel: PersonsViewModel 
                         enabled = state.persons.size < 4,
                         onClick = {
 //                        viewModel.addPerson()
-                        viewModel.showDialogBox(!showDialog)
-                    }) {
+                            viewModel.showDialogBox(!showDialog)
+                        }) {
 //                        Text(text = "Thêm người chơi")
                         Icon(Icons.Default.Add, contentDescription = "Thêm")
                     }
@@ -105,12 +133,16 @@ fun CalculatingScreen(navController: NavController, viewModel: PersonsViewModel 
                     }
                 }
                 if (state.persons.isNotEmpty()) {
-                    Button(modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp).align(Alignment.End), onClick = {
-                        viewModel.showConfirmDialog(content = "Bạn có chắc chắn muốn xóa toàn bộ người chơi",
-                            title = "Xóa toàn bộ người chơi",
-                            function = { viewModel.deleteAllPerson() })
+                    Button(
+                        modifier = Modifier
+                            .padding(start = 16.dp, top = 16.dp, end = 16.dp)
+                            .align(Alignment.End), onClick = {
+                            viewModel.showConfirmDialog(
+                                content = "Bạn có chắc chắn muốn xóa toàn bộ người chơi",
+                                title = "Xóa toàn bộ người chơi",
+                                function = { viewModel.deleteAllPerson() })
 
-                    }) {
+                        }) {
 //                        Text(text = "Xóa toàn bộ người chơi")
                         Icon(Icons.Default.Delete, contentDescription = "Xóa")
                     }

@@ -3,12 +3,15 @@ package com.aquarina.countingapp.presentation.features.caculating_china_poker.co
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -84,18 +87,24 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable {
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(
+                                    // hiệu ứng gợn sóng
+                                    bounded = true,          // true = ripple theo shape, false = ripple tròn
+                                )
+                            ) {
                                 viewModel.showEditStage(stage = it)
                             }
                     ) {
                         TableCell(text = "${it + 1}", weight = columnId)
                         for (number in 0..3) {
                             if (state.persons.size < number + 1) {
-                                TableCell(text = "0", weight = column1Weight)
+                                TableCell(text = "-", weight = column1Weight)
                             } else {
                                 if (state.persons[number].stages.size < it + 1) {
                                     TableCell(
-                                        text = "0",
+                                        text = "-",
                                         weight = column1Weight
                                     )
                                 } else {
@@ -115,7 +124,13 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                             .fillMaxWidth()
                             .border(.5.dp, Color.Gray)
                             .background(Color.LightGray)
-                            .clickable {
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(
+                                    // hiệu ứng gợn sóng
+                                    bounded = true,          // true = ripple theo shape, false = ripple tròn
+                                ),
+                            ) {
                                 viewModel.addNewStage()
                             },
                         contentAlignment = Alignment.Center

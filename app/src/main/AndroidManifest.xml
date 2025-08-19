@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
+
         android:name=".CountingApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -27,3 +28,5 @@
     </application>
 
 </manifest>
+
+<!--    android:enableOnBackInvokedCallback="true"-->

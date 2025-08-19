@@ -3,7 +3,7 @@ object Versions {
     const val composeMaterial3 = "1.1.1"
     const val composeCompiler = "1.4.6"
     const val composeBom = "2024.02.00"
-    const val navigation = "2.7.7"
+    const val navigation = "2.9.3"
     const val lifecycle = "2.7.0"
     const val room = "2.6.1"
     const val hilt = "2.50"
