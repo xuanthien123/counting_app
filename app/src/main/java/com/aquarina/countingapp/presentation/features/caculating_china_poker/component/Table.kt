@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.*
@@ -89,7 +90,7 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                             .fillMaxWidth()
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = rememberRipple(
+                                indication = ripple(
                                     // hiệu ứng gợn sóng
                                     bounded = true,          // true = ripple theo shape, false = ripple tròn
                                 )
@@ -126,7 +127,7 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                             .background(Color.LightGray)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = rememberRipple(
+                                indication = ripple(
                                     // hiệu ứng gợn sóng
                                     bounded = true,          // true = ripple theo shape, false = ripple tròn
                                 ),

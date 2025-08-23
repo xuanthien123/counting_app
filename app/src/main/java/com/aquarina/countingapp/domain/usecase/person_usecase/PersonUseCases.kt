@@ -1,4 +1,4 @@
-package com.aquarina.countingapp.domain.usecase
+package com.aquarina.countingapp.domain.usecase.person_usecase
 
 data class PersonUseCases(
     val getPersons: GetPersons,

@@ -58,10 +58,10 @@ fun SharedTransitionScope.MenuScreen(
             route = Screen.Calculating.route
         ),
         Service(
-            name = "Ghi chú",
-            description = "Ghi chú cái con mịa gì đó",
+            name = "Quản lý cầu thủ",
+            description = "Nó là điền tên với giá vô để nhìn cho dễ á",
             image = R.drawable.ic_note,
-            route = Screen.ListTodo.route
+            route = Screen.SoccerPlayerManager.route
         )
     )
     Scaffold(

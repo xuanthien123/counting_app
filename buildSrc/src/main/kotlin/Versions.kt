@@ -1,8 +1,8 @@
 object Versions {
-    const val compose = "1.4.3"
-    const val composeMaterial3 = "1.1.1"
-    const val composeCompiler = "1.4.6"
-    const val composeBom = "2024.02.00"
+    const val compose = "1.9.0"
+    const val composeMaterial3 = "1.3.2"
+    const val composeCompiler = "1.5.15"
+    const val composeBom = "2025.08.00"
     const val navigation = "2.9.3"
     const val lifecycle = "2.7.0"
     const val room = "2.6.1"

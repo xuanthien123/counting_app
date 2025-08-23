@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-kapt") // Thêm dòng này
     id("dagger.hilt.android.plugin") // Cần thiết cho Hilt
 }

@@ -11,6 +11,7 @@ object Dependencies {
         const val runtimeLiveData = "androidx.compose.runtime:runtime-livedata"
         const val composeRuntime = "androidx.compose.runtime:runtime:${Versions.compose}"
         const val activity = "androidx.activity:activity-compose:1.10.1"
+        const val icon = "androidx.compose.material:material-icons-extended:1.7.8"
     }
 
     object Hilt {
@@ -67,6 +68,7 @@ fun DependencyHandler.compose() {
     implementation(Dependencies.Compose.runtimeLiveData)
     implementation(Dependencies.Compose.composeRuntime)
     implementation(Dependencies.Compose.activity)
+    implementation(Dependencies.Compose.icon)
 }
 
 fun DependencyHandler.hilt() {

@@ -8,19 +8,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
-import com.aquarina.countingapp.domain.usecase.PersonUseCases
+import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime
 
 @HiltViewModel
 class PersonsViewModel @Inject constructor(
@@ -213,6 +209,21 @@ class PersonsViewModel @Inject constructor(
             onEvent(
                 PersonEvent.UpdatePerson(
                     person = state.value.persons[index].copy(
+                        stages = listStages,
+                        total = listStages.sum()
+                    )
+                )
+            )
+        }
+    }
+
+    fun deleteStage() {
+        for (person in state.value.persons) {
+            val listStages: MutableList<Int> = person.stages.toMutableList()
+            listStages.removeAt(stage)
+            onEvent(
+                PersonEvent.UpdatePerson(
+                    person = person.copy(
                         stages = listStages,
                         total = listStages.sum()
                     )

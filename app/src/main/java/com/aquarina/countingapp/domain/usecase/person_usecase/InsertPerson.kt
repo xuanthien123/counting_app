@@ -1,4 +1,4 @@
-package com.aquarina.countingapp.domain.usecase
+package com.aquarina.countingapp.domain.usecase.person_usecase
 
 import com.aquarina.countingapp.domain.model.InvalidPersonException
 import com.aquarina.countingapp.domain.model.Person

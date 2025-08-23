@@ -20,7 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.PersonsViewModel
 
 @Composable
-fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()) : Unit {
+fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
     var name: String by remember { mutableStateOf("") }
     val showDialog = viewModel.showDialog.value
     if (showDialog) {
@@ -39,12 +39,14 @@ fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()) : Unit {
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.showDialogBox(false)
-                    viewModel.addPerson(name)
-                    name = ""
-                    Log.d("NameInput", "Tên đã nhập: $name")
-                }) {
+                Button(
+                    enabled = name.isNotEmpty(),
+                    onClick = {
+                        viewModel.showDialogBox(false)
+                        viewModel.addPerson(name)
+                        name = ""
+                        Log.d("NameInput", "Tên đã nhập: $name")
+                    }) {
                     Text("OK")
                 }
             },

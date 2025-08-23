@@ -25,12 +25,14 @@ import com.aquarina.countingapp.presentation.features.add_todo.AddTodoScreen
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.CalculatingScreen
 import com.aquarina.countingapp.presentation.features.list_todo.ListTodoScreen
 import com.aquarina.countingapp.presentation.features.menu.MenuScreen
+import com.aquarina.countingapp.presentation.features.soccer_player_manager.SoccerPlayerManagerScreen
 
 enum class Screen(val route: String) {
     Menu("menu"),
     Calculating("calculating"),
     ListTodo("list_todo"),
-    AddTodo("add_todo")
+    AddTodo("add_todo"),
+    SoccerPlayerManager("soccer_player_manager"),
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -88,6 +90,13 @@ fun NavGraph(navController: NavHostController) {
                 )
             }
             composable(Screen.AddTodo.route) { AddTodoScreen(navController) }
+            composable(Screen.SoccerPlayerManager.route) {
+                SoccerPlayerManagerScreen(
+                    navController,
+                    this@SharedTransitionLayout,
+                    this@composable,
+                )
+            }
         }
     }
 }

@@ -1,6 +1,5 @@
-package com.aquarina.countingapp.domain.usecase
+package com.aquarina.countingapp.domain.usecase.person_usecase
 
-import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.repository.PersonRepository
 
 class DeleteAllPerson(
