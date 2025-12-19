@@ -41,6 +41,7 @@ object Dependencies {
 
     object Coil {
         const val coil = "io.coil-kt:coil-compose:${Versions.coil}"
+        const val gif = "io.coil-kt:coil-gif:${Versions.coil}"
     }
 
     object Accompanist {
@@ -97,6 +98,7 @@ fun DependencyHandler.coroutines() {
 
 fun DependencyHandler.coil() {
     implementation(Dependencies.Coil.coil)
+    implementation(Dependencies.Coil.gif)
 }
 
 fun DependencyHandler.accompanist() {

@@ -45,7 +45,6 @@ fun SharedTransitionScope.CalculatingScreen(
     val showDialog = viewModel.showDialog.value
     val betLevel = viewModel.betLevel.value
     val focusManager = LocalFocusManager.current
-    val initLoad = viewModel.initload.value
     Scaffold(
         modifier = Modifier.sharedElement(
             sharedTransitionScope.rememberSharedContentState(key = "screen-${Screen.Calculating.route}"),
@@ -54,7 +53,7 @@ fun SharedTransitionScope.CalculatingScreen(
         topBar = {
             TopAppBar(title = {
                 Text(
-                    text = "Tính tiền Binh",
+                    text = "Tính tiền đánh bài",
                     style = TextStyle(fontWeight = FontWeight.W500, fontSize = 18.sp),
                     modifier = Modifier.sharedElement(
                         sharedTransitionScope.rememberSharedContentState(key = "text-${Screen.Calculating.route}"),
@@ -72,7 +71,6 @@ fun SharedTransitionScope.CalculatingScreen(
                 }
             })
         }) { padding ->
-        if (initLoad)
         Box(
             modifier = Modifier
                 .padding(padding)
@@ -106,7 +104,8 @@ fun SharedTransitionScope.CalculatingScreen(
                         }
                     }
                     Button(
-                        enabled = state.persons.size < 4,
+//                        enabled = state.persons.size < 4,
+                        enabled = true,
                         onClick = {
 //                        viewModel.addPerson()
                             viewModel.showDialogBox(!showDialog)

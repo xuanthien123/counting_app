@@ -45,14 +45,14 @@ class PersonsViewModel @Inject constructor(
     var gameInfo: GameInfo? = null
 
     private val _initLoad = mutableStateOf(false)
-    val initload: State<Boolean> = _initLoad
+//    val initload: State<Boolean> = _initLoad
 
     init {
         viewModelScope.launch {
-            delay(50.milliseconds)
+//            delay(50.milliseconds)
             getGameInfo()
             getPersons()
-            _initLoad.value = true
+//            _initLoad.value = true
         }
     }
 
@@ -125,10 +125,11 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun addPerson(name: String) {
-        if (state.value.persons.size >= 4) {
-            // TODO: show error
-            return
-        }
+//        if (state.value.persons.size >= 4) {
+//            // TODO: show error
+//            return
+//        }
+
         val person: PersonEvent =
             PersonEvent.CreatePerson(
                 person = Person(

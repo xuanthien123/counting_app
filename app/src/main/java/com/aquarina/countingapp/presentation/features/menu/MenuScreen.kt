@@ -1,5 +1,6 @@
 package com.aquarina.countingapp.presentation.features.menu
 
+import android.app.Activity
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
@@ -25,14 +26,19 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.aquarina.countingapp.R
@@ -52,7 +58,7 @@ fun SharedTransitionScope.MenuScreen(
 ) {
     val items = listOf(
         Service(
-            name = "Tính tiền Binh",
+            name = "Tính tiền đánh bài",
             description = "Tính tiền theo mức cược",
             image = R.drawable.ic_calculate,
             route = Screen.Calculating.route
@@ -64,6 +70,17 @@ fun SharedTransitionScope.MenuScreen(
             route = Screen.SoccerPlayerManager.route
         )
     )
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+
+            window.statusBarColor = Color.White.toArgb()
+
+            WindowCompat.getInsetsController(window, view)
+                .isAppearanceLightStatusBars = true
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
