@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-kapt") // Thêm dòng này
     id("dagger.hilt.android.plugin") // Cần thiết cho Hilt
 }
@@ -19,9 +20,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("key-app.jks")  // Đường dẫn tới keystore
+            storePassword = "thien123"  // Mật khẩu của keystore
+            keyAlias = "key-app"  // Tên alias của key
+            keyPassword = "thien123"  // Mật khẩu của key
+        }
+    }
+
     buildTypes {
-        release {
-            isMinifyEnabled = false
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")  // Áp dụng signing config cho release
+            isMinifyEnabled = false  // Tắt ProGuard/R8 nếu không muốn tối ưu hóa mã
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -56,4 +67,6 @@ dependencies {
     accompanist()
     debug()
     testing()
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
+    kapt ("com.github.bumptech.glide:compiler:4.16.0")
 }

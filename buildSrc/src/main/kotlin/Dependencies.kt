@@ -6,10 +6,12 @@ object Dependencies {
         const val ui = "androidx.compose.ui:ui:${Versions.compose}"
         const val preview = "androidx.compose.ui:ui-tooling-preview:${Versions.compose}"
         const val material3 = "androidx.compose.material3:material3:${Versions.composeMaterial3}"
-//        const val navigation = "androidx.navigation:navigation-compose:${Versions.navigation}"
+        const val navigation = "androidx.navigation:navigation-compose:${Versions.navigation}"
         const val viewModel = "androidx.lifecycle:lifecycle-viewmodel-compose:${Versions.lifecycle}"
         const val runtimeLiveData = "androidx.compose.runtime:runtime-livedata"
         const val composeRuntime = "androidx.compose.runtime:runtime:${Versions.compose}"
+        const val activity = "androidx.activity:activity-compose:1.10.1"
+        const val icon = "androidx.compose.material:material-icons-extended:1.7.8"
     }
 
     object Hilt {
@@ -39,11 +41,12 @@ object Dependencies {
 
     object Coil {
         const val coil = "io.coil-kt:coil-compose:${Versions.coil}"
+        const val gif = "io.coil-kt:coil-gif:${Versions.coil}"
     }
 
     object Accompanist {
         const val systemUi = "com.google.accompanist:accompanist-systemuicontroller:${Versions.accompanist}"
-        const val navAnim = "com.google.accompanist:accompanist-navigation-animation:${Versions.accompanist}"
+//        const val navAnim = "com.google.accompanist:accompanist-navigation-animation:${Versions.accompanist}"
     }
 
     object Debug {
@@ -52,7 +55,7 @@ object Dependencies {
     }
 
     object Testing {
-        const val junit4 = "androidx.compose.ui:ui-test-junit4"
+        const val junit4 = "androidx.compose.ui:ui-test-junit4:1.0.5"
     }
 }
 
@@ -61,10 +64,12 @@ fun DependencyHandler.compose() {
     implementation(Dependencies.Compose.ui)
     implementation(Dependencies.Compose.preview)
     implementation(Dependencies.Compose.material3)
-//    implementation(Dependencies.Compose.navigation)
+    implementation(Dependencies.Compose.navigation)
     implementation(Dependencies.Compose.viewModel)
     implementation(Dependencies.Compose.runtimeLiveData)
     implementation(Dependencies.Compose.composeRuntime)
+    implementation(Dependencies.Compose.activity)
+    implementation(Dependencies.Compose.icon)
 }
 
 fun DependencyHandler.hilt() {
@@ -93,11 +98,12 @@ fun DependencyHandler.coroutines() {
 
 fun DependencyHandler.coil() {
     implementation(Dependencies.Coil.coil)
+    implementation(Dependencies.Coil.gif)
 }
 
 fun DependencyHandler.accompanist() {
     implementation(Dependencies.Accompanist.systemUi)
-    implementation(Dependencies.Accompanist.navAnim)
+//    implementation(Dependencies.Accompanist.navAnim)
 }
 
 fun DependencyHandler.debug() {
@@ -108,4 +114,5 @@ fun DependencyHandler.debug() {
 fun DependencyHandler.testing() {
 //    androidTestImplementation(platform(Dependencies.Compose.bom))
     androidTestImplementation(Dependencies.Testing.junit4)
+    androidTestImplementation("junit:junit:4.13.2")
 }
