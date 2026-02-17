@@ -3,23 +3,35 @@ package com.aquarina.countingapp.presentation.features.caculating_china_poker.co
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,6 +47,7 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
     val showDialog = viewModel.showDialogEditStage.value
     val persons = viewModel.state.value.persons
     val focusManager = LocalFocusManager.current
+
     Log.d("NameInput", "stage: ${listWinLoseState.value}")
     if (showDialog) {
         AlertDialog(
@@ -42,7 +55,38 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                 viewModel.showDialogEditStage(false)
                 focusManager.clearFocus()
             },
-            title = { Text(text = "Ván ${viewModel.stage + 1}") },
+            title = {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    Text(text = "Ván ${viewModel.stage + 1}")
+                    Box(
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(
+                                bounded = true
+                            ),
+                        ) {
+                            viewModel.showConfirmDialog(
+                                content = "Bạn có chắc chắn muốn xóa ván này không?",
+                                title = "Xóa ván đấu?",
+                                function = {
+                                    viewModel.deleteStage()
+                                    viewModel.showDialogEditStage(false)
+                                })
+
+                        },
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Xóa",
+                            modifier = Modifier.padding(4.dp)
+                        )
+                    }
+                }
+            },
             text = {
                 Column(
                     modifier = Modifier
@@ -59,6 +103,11 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                                     }
                             },
                             label = { Text(persons[index].name) },
+                            shape = RoundedCornerShape(12.dp), // 👈 Bo góc nè
+                            colors = TextFieldDefaults.colors(
+                                unfocusedIndicatorColor = Color.Transparent,
+                                unfocusedLabelColor = Color.Gray
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp),

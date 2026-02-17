@@ -8,14 +8,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
-import com.aquarina.countingapp.domain.usecase.PersonUseCases
+import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class PersonsViewModel @Inject constructor(
@@ -43,10 +44,15 @@ class PersonsViewModel @Inject constructor(
 
     var gameInfo: GameInfo? = null
 
+    private val _initLoad = mutableStateOf(false)
+//    val initload: State<Boolean> = _initLoad
+
     init {
         viewModelScope.launch {
+//            delay(50.milliseconds)
             getGameInfo()
             getPersons()
+//            _initLoad.value = true
         }
     }
 
@@ -119,10 +125,11 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun addPerson(name: String) {
-        if (state.value.persons.size >= 4) {
-            // TODO: show error
-            return
-        }
+//        if (state.value.persons.size >= 4) {
+//            // TODO: show error
+//            return
+//        }
+
         val person: PersonEvent =
             PersonEvent.CreatePerson(
                 person = Person(
@@ -165,7 +172,7 @@ class PersonsViewModel @Inject constructor(
 
     fun refreshData() {
         for (person in state.value.persons) {
-            onEvent(PersonEvent.UpdatePerson(person = person.copy(stages = emptyList())))
+            onEvent(PersonEvent.UpdatePerson(person = person.copy(stages = emptyList(), total = 0)))
         }
     }
 
@@ -182,10 +189,16 @@ class PersonsViewModel @Inject constructor(
     fun showEditStage(stage: Int) {
         this.stage = stage;
         listWinLose.clear()
+        var isInit = true
         for (person in state.value.persons) {
             listWinLose.add(person.stages[stage].toString())
+            if (person.stages[stage] != 0) isInit = false
         }
-        listWinLoseState.value = listWinLose
+        if (isInit) {
+            listWinLoseState.value = List(state.value.persons.size) { "" }
+        } else {
+            listWinLoseState.value = listWinLose
+        }
         Log.d("NameInput", "stage: $listWinLose")
         _showDialogEditStage.value = true
     }
@@ -194,8 +207,6 @@ class PersonsViewModel @Inject constructor(
         for (index in 0 until listWinLoseState.value.size) {
             val listStages: MutableList<Int> = state.value.persons[index].stages.toMutableList()
             listStages[stage] = listWinLoseState.value[index].toIntOrNull() ?: 0
-            Log.d("NameInput", "stage: ${listStages[stage]}")
-            Log.d("NameInput", "stage: ${state.value.persons[index].copy(stages = listStages)}")
             onEvent(
                 PersonEvent.UpdatePerson(
                     person = state.value.persons[index].copy(
@@ -207,4 +218,52 @@ class PersonsViewModel @Inject constructor(
         }
     }
 
+    fun deleteStage() {
+        for (person in state.value.persons) {
+            val listStages: MutableList<Int> = person.stages.toMutableList()
+            listStages.removeAt(stage)
+            onEvent(
+                PersonEvent.UpdatePerson(
+                    person = person.copy(
+                        stages = listStages,
+                        total = listStages.sum()
+                    )
+                )
+            )
+        }
+    }
+
+    private val _showConfirmDialog = mutableStateOf(false)
+    val showConfirmDialog: State<Boolean> = _showConfirmDialog
+    var title: String = "Xác nhận"
+    var content: String = ""
+    var function: () -> Unit = {}
+    fun closeConfirmDialog() {
+        _showConfirmDialog.value = false
+    }
+
+    fun showConfirmDialog(title: String, content: String, function: () -> Unit) {
+        this.title = title
+        this.content = content
+        this.function = function
+        _showConfirmDialog.value = true
+
+    }
+
+    fun getAchievement(value: Int): String {
+        return when {
+            value >= 75 -> return "🐐"
+            value in 50 until 75 -> "👑"
+            value in 30 until 50 -> "🥇"
+            value in 15 until 30 -> "🥈"
+            value in 1 until 15 -> "🥉"
+            value == 0 -> return ""
+            value in -14 until 0 -> "🐔"
+            value in -29 until -14 -> "🤮"
+            value in -49 until -29 -> "💩"
+            value in -74 until -49 -> "🏦"
+            else -> "⚰️"
+
+        }
+    }
 }
