@@ -45,7 +45,7 @@ fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                     Text(text = if (viewModel.editingId.value != null) "Sửa tên" else "Nhập Tên")
                     if (viewModel.editingId.value != null) {
                         val user = viewModel.state.value.persons[viewModel.editingId.value!!]
-                        if (user.total == 0)
+                        if (user.total == 0) {
                         Box(
                             modifier = Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
@@ -68,7 +68,7 @@ fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                                 contentDescription = "Xóa",
                                 modifier = Modifier.padding(4.dp)
                             )
-                        }
+                        }}
                     }
                 }},
             text = {

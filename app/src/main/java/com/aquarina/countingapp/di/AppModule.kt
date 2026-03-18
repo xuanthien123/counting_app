@@ -8,21 +8,8 @@ import com.aquarina.countingapp.data.repository.PersonRepositoryImpl
 import com.aquarina.countingapp.data.repository.SoccerPlayerRepositoryImpl
 import com.aquarina.countingapp.domain.repository.PersonRepository
 import com.aquarina.countingapp.domain.repository.SoccerRepository
-import com.aquarina.countingapp.domain.usecase.person_usecase.DeleteAllPerson
-import com.aquarina.countingapp.domain.usecase.person_usecase.DeletePerson
-import com.aquarina.countingapp.domain.usecase.person_usecase.GetGameInfo
-import com.aquarina.countingapp.domain.usecase.person_usecase.GetPersons
-import com.aquarina.countingapp.domain.usecase.person_usecase.InsertGameInfo
-import com.aquarina.countingapp.domain.usecase.person_usecase.InsertPerson
-import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
-import com.aquarina.countingapp.domain.usecase.person_usecase.UpdateGameInfo
-import com.aquarina.countingapp.domain.usecase.person_usecase.UpdatePerson
-import com.aquarina.countingapp.domain.usecase.soccer_usecase.DeleteSoccerPlayer
-import com.aquarina.countingapp.domain.usecase.soccer_usecase.GetSoccerPlayer
-import com.aquarina.countingapp.domain.usecase.soccer_usecase.GetSoccerPlayerById
-import com.aquarina.countingapp.domain.usecase.soccer_usecase.InsertSoccerPlayer
-import com.aquarina.countingapp.domain.usecase.soccer_usecase.SoccerUseCases
-import com.aquarina.countingapp.domain.usecase.soccer_usecase.UpdateSoccerPlayer
+import com.aquarina.countingapp.domain.usecase.person_usecase.*
+import com.aquarina.countingapp.domain.usecase.soccer_usecase.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -57,7 +44,7 @@ object AppModule {
     @Provides
     @Singleton
     fun providePersonRepository(db: PersonDatabase): PersonRepository {
-        return PersonRepositoryImpl(db.personDao, db.gameInfoDao)
+        return PersonRepositoryImpl(db.personDao, db.gameInfoDao, db.userTagDao)
     }
 
     @Provides
@@ -77,7 +64,10 @@ object AppModule {
             updatePerson = UpdatePerson(repository),
             getGameInfo = GetGameInfo(repository),
             insertGameInfo = InsertGameInfo(repository),
-            updateGameInfo = UpdateGameInfo(repository)
+            updateGameInfo = UpdateGameInfo(repository),
+            getUserTags = GetUserTags(repository),
+            insertUserTag = InsertUserTag(repository),
+            deleteUserTag = DeleteUserTag(repository)
         )
     }
 
