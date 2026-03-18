@@ -3,14 +3,17 @@ package com.aquarina.countingapp.data.repository
 import androidx.room.Transaction
 import com.aquarina.countingapp.data.local.GameInfoDao
 import com.aquarina.countingapp.data.local.PersonDao
+import com.aquarina.countingapp.data.local.UserTagDao
 import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
+import com.aquarina.countingapp.domain.model.UserTag
 import com.aquarina.countingapp.domain.repository.PersonRepository
 import kotlinx.coroutines.flow.Flow
 
 class PersonRepositoryImpl(
     private val personDao: PersonDao,
-    private val gameInfoDao: GameInfoDao
+    private val gameInfoDao: GameInfoDao,
+    private val userTagDao: UserTagDao
 ) : PersonRepository {
 
     override fun getPersons(): Flow<List<Person>> {
@@ -22,7 +25,7 @@ class PersonRepositoryImpl(
     }
 
     override suspend fun insertPerson(person: Person) {
-        personDao.insertPerson(person) // Bỏ `return`
+        personDao.insertPerson(person)
     }
 
     override suspend fun deletePerson(person: Person) {
@@ -47,6 +50,18 @@ class PersonRepositoryImpl(
 
     @Transaction
     override suspend fun updateGameInfo(gameInfo: GameInfo) {
-        gameInfoDao.updateGame(gameInfo) // Đánh dấu Transaction
+        gameInfoDao.updateGame(gameInfo)
+    }
+
+    override fun getUserTags(): Flow<List<UserTag>> {
+        return userTagDao.getUserTags()
+    }
+
+    override suspend fun insertUserTag(userTag: UserTag) {
+        userTagDao.insertUserTag(userTag)
+    }
+
+    override suspend fun deleteUserTag(userTag: UserTag) {
+        userTagDao.deleteUserTag(userTag)
     }
 }

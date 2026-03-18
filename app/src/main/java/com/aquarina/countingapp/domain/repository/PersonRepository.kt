@@ -2,6 +2,7 @@ package com.aquarina.countingapp.domain.repository
 
 import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
+import com.aquarina.countingapp.domain.model.UserTag
 import kotlinx.coroutines.flow.Flow
 
 interface PersonRepository {
@@ -22,4 +23,10 @@ interface PersonRepository {
     suspend fun addGameInfo(gameInfo: GameInfo)
 
     suspend fun updateGameInfo(gameInfo: GameInfo)
+
+    fun getUserTags(): Flow<List<UserTag>>
+
+    suspend fun insertUserTag(userTag: UserTag)
+
+    suspend fun deleteUserTag(userTag: UserTag)
 }

@@ -8,5 +8,8 @@ data class PersonUseCases(
     val updatePerson: UpdatePerson,
     val getGameInfo: GetGameInfo,
     val insertGameInfo: InsertGameInfo,
-    val updateGameInfo: UpdateGameInfo
+    val updateGameInfo: UpdateGameInfo,
+    val getUserTags: GetUserTags,
+    val insertUserTag: InsertUserTag,
+    val deleteUserTag: DeleteUserTag
 )

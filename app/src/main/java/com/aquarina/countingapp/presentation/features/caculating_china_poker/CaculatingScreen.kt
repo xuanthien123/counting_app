@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -42,7 +41,6 @@ fun SharedTransitionScope.CalculatingScreen(
     viewModel: PersonsViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.value
-    val showDialog = viewModel.showDialog.value
     val betLevel = viewModel.betLevel.value
     val focusManager = LocalFocusManager.current
     Scaffold(
@@ -98,19 +96,16 @@ fun SharedTransitionScope.CalculatingScreen(
                     ) {
                         Text(text = "Mức cược: ${betLevel.formatToReadable()}")
                         IconButton(onClick = {
-                            viewModel.showDialogBoxBetLevel(!showDialog)
+                            viewModel.showDialogBoxBetLevel(true)
                         }) {
                             Icon(Icons.Default.Edit, contentDescription = "Chỉnh sửa")
                         }
                     }
                     Button(
-//                        enabled = state.persons.size < 4,
                         enabled = true,
                         onClick = {
-//                        viewModel.addPerson()
-                            viewModel.showDialogBox(!showDialog)
+                            viewModel.showDialogSelectUser(true)
                         }) {
-//                        Text(text = "Thêm người chơi")
                         Icon(Icons.Default.Add, contentDescription = "Thêm")
                     }
                 }
@@ -142,16 +137,15 @@ fun SharedTransitionScope.CalculatingScreen(
                                 function = { viewModel.deleteAllPerson() })
 
                         }) {
-//                        Text(text = "Xóa toàn bộ người chơi")
                         Icon(Icons.Default.Delete, contentDescription = "Xóa")
                     }
                 }
-                // Đảm bảo TableScreen có nội dung để hiển thị
                 TableScreen()
                 DialogWidget()
                 DialogWidgetBetLevel()
                 StageDialogWidget()
                 DialogConfirm()
+                DialogSelectUser()
             }
         }
     }
