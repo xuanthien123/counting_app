@@ -27,3 +27,5 @@
     </application>
 
 </manifest>
+
+<!--    android:enableOnBackInvokedCallback="true"-->

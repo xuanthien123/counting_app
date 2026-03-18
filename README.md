@@ -1,7 +1,7 @@
 # **Note Taking and Betting Calculation App**
 
 ## **Introduction**
-Welcome to the **Note Taking and Betting Calculation App** app! This is a simple application that I built to **learn Android Jetpack Compose** and **calculate betting amounts** for the card game **Binh Xập Xám**.
+Welcome to the **Note Taking and Betting/Note/Calculate App** app! This is a simple application that I built to **learn Android Jetpack Compose** and **calculate betting amounts** for the card game **Binh Xập Xám**.
 
 The app consists of the following main features:
 - **Note-taking**: Store important information about the game, such as player names, betting amounts, etc.
@@ -28,3 +28,4 @@ The main goals of this app are:
 1. **Clone the repository** to your local machine:
    ```bash
    git clone https://github.com/xuanthien123/counting_app.git
+
