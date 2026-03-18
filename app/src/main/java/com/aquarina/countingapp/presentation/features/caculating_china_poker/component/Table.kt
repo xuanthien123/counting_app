@@ -1,5 +1,6 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker.component
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,12 +9,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.*
 import androidx.compose.ui.Modifier
@@ -41,14 +44,27 @@ import com.aquarina.countingapp.presentation.features.caculating_china_poker.Per
 fun RowScope.TableCell(
     text: String,
     weight: Float,
-    color: Color = Color.Transparent
+    color: Color = Color.Transparent,
+    clickable: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
             .border(.5.dp, Color.Gray)
-            .padding(top = 8.dp, bottom = 8.dp)
+
             .weight(weight)
-            .background(color),
+            .background(color)
+            .then(
+                if (clickable) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(),
+                        onClick = onClick!!
+                    ).padding(top = 8.dp, bottom = 8.dp)
+                } else {
+                    Modifier.padding(top = 8.dp, bottom = 8.dp)
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -63,6 +79,8 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
     val state = viewModel.state.value
     val column1Weight = .23f // 23%
     val columnId = .08f
+    val listState = rememberLazyListState()
+
     if (state.persons.size < 2) {
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -116,8 +134,10 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
 //                TableCell(text = "Column 3", weight = column1Weight)
 //                TableCell(text = "Column 4", weight = column1Weight)
                 }
+
                 LazyColumn(
-                    Modifier
+                    state = listState,
+                    modifier = Modifier
                         .fillMaxSize()
                 ) {
                     // Here are all the lines of your table.
@@ -189,11 +209,17 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                     if (state.persons.size < number + 1) {
                         TableCell(text = "?", weight = column1Weight, color = Color.LightGray)
                     } else {
+
                         TableCell(
                             text = state.persons[number].name ?: "--",
                             weight = column1Weight,
-                            color = Color.LightGray
+                            color = Color.LightGray,
+                            clickable = true,
+                            onClick = {
+                                viewModel.showEditName(true, number)
+                            }
                         )
+
                     }
                 }
 //                TableCell(text = "Column 1", weight = column1Weight)

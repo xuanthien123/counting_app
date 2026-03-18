@@ -84,7 +84,7 @@ fun SharedTransitionScope.MenuScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {Text("Counting App")}
+                title = {Text("Siêu đẳng cấp ứng dụng")}
             )
         }
     ) { padding ->

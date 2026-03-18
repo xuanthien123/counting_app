@@ -12,6 +12,8 @@ import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -36,7 +38,7 @@ class PersonsViewModel @Inject constructor(
 
     private var getPersonJob: Job? = null
 
-    private val _betLevel = mutableStateOf(0)
+    private val _betLevel = mutableStateOf(1)
     val betLevel: State<Int> = _betLevel
 
     private val _numberOfStage = mutableStateOf(0)
@@ -46,6 +48,7 @@ class PersonsViewModel @Inject constructor(
 
     private val _initLoad = mutableStateOf(false)
 //    val initload: State<Boolean> = _initLoad
+
 
     init {
         viewModelScope.launch {
@@ -108,7 +111,7 @@ class PersonsViewModel @Inject constructor(
             if (gameInfo != null) {
                 _betLevel.value = gameInfo!!.betLevel
             } else {
-                personUseCases.insertGameInfo(GameInfo(betLevel = 0))
+                personUseCases.insertGameInfo(GameInfo(betLevel = 1))
                 gameInfo = personUseCases.getGameInfo()
             }
         }
@@ -140,12 +143,38 @@ class PersonsViewModel @Inject constructor(
         onEvent(person)
     }
 
+    fun editPerson(name: String) {
+        val person: PersonEvent =
+            PersonEvent.UpdatePerson(
+                person = state.value.persons[editingId.value!!].copy(name = name)
+
+            )
+        onEvent(person)
+    }
+
     fun deleteAllPerson() {
         onEvent(PersonEvent.DeleteAllPerson)
         _numberOfStage.value = 0
     }
 
+    val initName = mutableStateOf("")
+    private val _editingId: MutableState<Int?> = mutableStateOf(null)
+    val editingId: State<Int?> = _editingId
+
     fun showDialogBox(value: Boolean) {
+        if (value) {
+            initName.value = ""
+            _editingId.value = null
+        }
+        _showDialog.value = value
+    }
+
+    fun showEditName(value: Boolean, index: Int) {
+        if (value) {
+            initName.value = state.value.persons[index].name
+            Log.d("NameInput", "Tên người chơi: ${initName.value}")
+            _editingId.value = index
+        }
         _showDialog.value = value
     }
 
