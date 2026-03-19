@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.aquarina.countingapp.presentation.features.caculating_china_poker.PersonEvent
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.PersonsViewModel
 
 @Composable
@@ -42,35 +43,52 @@ fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
-                    Text(text = if (viewModel.editingId.value != null) "Sửa tên" else "Nhập Tên")
-                    if (viewModel.editingId.value != null) {
-                        val user = viewModel.state.value.persons[viewModel.editingId.value!!]
+                    val editingId = viewModel.editingId.value
+                    Text(text = if (editingId != null) "Sửa tên" else "Nhập Tên")
+                    if (editingId != null && editingId < viewModel.state.value.persons.size) {
+                        val user = viewModel.state.value.persons[editingId]
                         if (user.total == 0) {
-                        Box(
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(
-                                    bounded = true
-                                ),
-                            ) {
-                                viewModel.showConfirmDialog(
-                                    content = "Bạn có chắc chắn muốn xóa người chơi này không?(Khi xóa người chơi sẽ làm mới lịch sử đánh bài và gộp lại thành 1 ván)",
-                                    title = "Xóa người chơi?",
-                                    function = {
-                                        viewModel.deleteStage()
-                                        viewModel.showDialogEditStage(false)
-                                    })
+                            Box(
+                                modifier = Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(
+                                        bounded = true
+                                    ),
+                                ) {
+                                    if (user.total == 0) {
+                                        var deleteable = true
+                                        for (stage in user.stages) {
+                                            if (stage != 0) {
+                                                deleteable = false
+                                                break
+                                            }
+                                        }
+                                        if (deleteable) {
+                                            viewModel.onEvent(PersonEvent.DeletePerson(user))
+                                            viewModel.showDialogBox(false)
+                                        } else {
+                                            viewModel.showConfirmDialog(
+                                                content = "Bạn có chắc chắn muốn xóa người chơi này không?(Khi xóa người chơi sẽ làm mới lịch sử đánh bài và gộp lại thành 1 ván)",
+                                                title = "Xóa người chơi?",
+                                                function = {
+                                                    viewModel.deleteUser(user)
+                                                    viewModel.showDialogEditStage(false)
+                                                })
+                                        }
+                                    }
 
-                            },
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Xóa",
-                                modifier = Modifier.padding(4.dp)
-                            )
-                        }}
+                                },
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Xóa",
+                                    modifier = Modifier.padding(4.dp)
+                                )
+                            }
+                        }
                     }
-                }},
+                }
+            },
             text = {
                 TextField(
                     value = name,

@@ -74,6 +74,7 @@ class PersonsViewModel @Inject constructor(
                 viewModelScope.launch {
                     personUseCases.deletePerson(event.person)
                     deletedPerson = event.person
+                    getPersons()
                 }
             }
 
@@ -192,12 +193,14 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun editPerson(name: String) {
-        val person: PersonEvent =
-            PersonEvent.UpdatePerson(
-                person = state.value.persons[editingId.value!!].copy(name = name)
-
-            )
-        onEvent(person)
+        val index = editingId.value
+        if (index != null && index >= 0 && index < state.value.persons.size) {
+            val person: PersonEvent =
+                PersonEvent.UpdatePerson(
+                    person = state.value.persons[index].copy(name = name)
+                )
+            onEvent(person)
+        }
     }
 
     fun deleteAllPerson() {
@@ -218,12 +221,14 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun showEditName(value: Boolean, index: Int) {
-        if (value) {
+        if (value && index >= 0 && index < state.value.persons.size) {
             initName.value = state.value.persons[index].name
             Log.d("NameInput", "Tên người chơi: ${initName.value}")
             _editingId.value = index
+            _showDialog.value = true
+        } else if (!value) {
+            _showDialog.value = false
         }
-        _showDialog.value = value
     }
 
 //    fun showDialogBox(value: Boolean) {
@@ -325,6 +330,22 @@ class PersonsViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun deleteUser(user: Person) {
+        for (person in state.value.persons) {
+            val total: Int = person.stages.sum()
+            onEvent(
+                PersonEvent.UpdatePerson(
+                    person = person.copy(
+                        stages = listOf(total),
+                        total = total
+                    )
+                )
+            )
+        }
+        onEvent(PersonEvent.DeletePerson(user))
+        _showDialog.value = false
     }
 
     private val _showConfirmDialog = mutableStateOf(false)

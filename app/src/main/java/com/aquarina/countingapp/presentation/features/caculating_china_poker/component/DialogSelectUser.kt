@@ -1,8 +1,12 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker.component
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Indication
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -12,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,7 +57,18 @@ fun DialogSelectUser(viewModel: PersonsViewModel = hiltViewModel()) {
                         TextField(
                             value = newTagName,
                             onValueChange = { newTagName = it },
-                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp), // 👈 Bo góc nè
+                            colors = TextFieldDefaults.colors(
+                                unfocusedIndicatorColor = Color.Transparent,
+                                unfocusedLabelColor = Color.Gray
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 8.dp),
+                            keyboardOptions = KeyboardOptions.Default.copy(
+                                keyboardType = KeyboardType.Text,
+                                capitalization = KeyboardCapitalization.Words
+                            ),
                             placeholder = { Text("Tên mới...") },
                             singleLine = true
                         )
@@ -81,7 +98,13 @@ fun DialogSelectUser(viewModel: PersonsViewModel = hiltViewModel()) {
                                 tag = tag,
                                 isSelected = true,
                                 onToggle = { tag.id?.let { viewModel.toggleTagSelection(it) } },
-                                onDelete = { viewModel.deleteUserTag(tag) }
+                                onDelete = {
+                                    viewModel.showConfirmDialog(
+                                        title = "Xóa tag",
+                                        content = "Bạn có chắc chắn muốn xóa tag '${tag.name}' không?",
+                                        function = { viewModel.deleteUserTag(tag) }
+                                    )
+                                }
                             )
                         }
                     }
@@ -102,7 +125,13 @@ fun DialogSelectUser(viewModel: PersonsViewModel = hiltViewModel()) {
                                 tag = tag,
                                 isSelected = false,
                                 onToggle = { tag.id?.let { viewModel.toggleTagSelection(it) } },
-                                onDelete = { viewModel.deleteUserTag(tag) }
+                                onDelete = {
+                                    viewModel.showConfirmDialog(
+                                        title = "Xóa tag",
+                                        content = "Bạn có chắc chắn muốn xóa tag '${tag.name}' không?",
+                                        function = { viewModel.deleteUserTag(tag) }
+                                    )
+                                }
                             )
                         }
                     }
@@ -112,6 +141,7 @@ fun DialogSelectUser(viewModel: PersonsViewModel = hiltViewModel()) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagItem(
     tag: UserTag,
@@ -120,28 +150,24 @@ fun TagItem(
     onDelete: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.clickable { onToggle() },
+        modifier = Modifier.combinedClickable(
+            onClick = { onToggle() },
+            onLongClick = { onDelete() },
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() }
+        ),
         shape = RoundedCornerShape(16.dp),
         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = tag.name,
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Xóa",
-                modifier = Modifier
-                    .size(16.dp)
-                    .clickable { onDelete() },
-                tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         }
     }
