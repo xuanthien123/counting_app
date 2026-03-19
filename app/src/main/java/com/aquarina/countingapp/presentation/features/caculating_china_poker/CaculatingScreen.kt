@@ -3,27 +3,30 @@ package com.aquarina.countingapp.presentation.features.caculating_china_poker
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.stylusHoverIcon
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,104 +46,174 @@ fun SharedTransitionScope.CalculatingScreen(
     val state = viewModel.state.value
     val betLevel = viewModel.betLevel.value
     val focusManager = LocalFocusManager.current
+    val isProcessing = state.isProcessing
+    
     Scaffold(
         modifier = Modifier.sharedElement(
             sharedTransitionScope.rememberSharedContentState(key = "screen-${Screen.Calculating.route}"),
             animatedVisibilityScope = animatedContentScope
         ),
         topBar = {
-            TopAppBar(title = {
-                Text(
-                    text = "Tính tiền đánh bài",
-                    style = TextStyle(fontWeight = FontWeight.W500, fontSize = 18.sp),
-                    modifier = Modifier.sharedElement(
-                        sharedTransitionScope.rememberSharedContentState(key = "text-${Screen.Calculating.route}"),
-                        animatedVisibilityScope = animatedContentScope
-                    )
-                )
-            }, actions = {
-                IconButton(onClick = {
-                    viewModel.showConfirmDialog(
-                        content = "Bạn có chắc chắn muốn làm mới toàn bộ lịch sử chơi (sẽ mất số tiền hiện tại)",
-                        title = "Đặt lại",
-                        function = { viewModel.refreshData() })
-                }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Làm mới")
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "Tính Tiền Đánh Bài",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Mức cược: ${betLevel.formatToReadable()}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        enabled = !isProcessing,
+                        onClick = { viewModel.showDialogBoxBetLevel(true) }
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = "Sửa cược")
+                    }
+                    IconButton(
+                        enabled = !isProcessing,
+                        onClick = { viewModel.showDialogSelectUser(true) }
+                    ) {
+                        Icon(Icons.Default.PersonAdd, contentDescription = "Thêm người")
+                    }
+                    IconButton(
+                        enabled = !isProcessing,
+                        onClick = {
+                        viewModel.showConfirmDialog(
+                            content = "Bạn có chắc chắn muốn làm mới toàn bộ lịch sử chơi?",
+                            title = "Đặt lại",
+                            function = { viewModel.refreshData() })
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Làm mới")
+                    }
+                    IconButton(
+                        enabled = !isProcessing,
+                        onClick = {
+                        viewModel.showConfirmDialog(
+                            content = "Bạn có chắc chắn muốn xóa toàn bộ người chơi?",
+                            title = "Xóa tất cả",
+                            function = { viewModel.deleteAllPerson() })
+                    }) {
+                        Icon(Icons.Default.DeleteSweep, contentDescription = "Xóa hết", tint = if (isProcessing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.error)
+                    }
                 }
-            })
-        }) { padding ->
+            )
+        }
+    ) { padding ->
         Box(
             modifier = Modifier
                 .padding(padding)
+                .fillMaxSize()
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
-                            // Chỉ clear focus nếu không đụng vào input nào
                             if (event.changes.any { it.pressed }) {
                                 focusManager.clearFocus()
                             }
                         }
                     }
-                }) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(), // Đảm bảo Row chiếm hết chiều rộng
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "Mức cược: ${betLevel.formatToReadable()}")
-                        IconButton(onClick = {
-                            viewModel.showDialogBoxBetLevel(true)
-                        }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Chỉnh sửa")
-                        }
-                    }
-                    Button(
-                        enabled = true,
-                        onClick = {
-                            viewModel.showDialogSelectUser(true)
-                        }) {
-                        Icon(Icons.Default.Add, contentDescription = "Thêm")
-                    }
                 }
-                LazyVerticalGrid(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    columns = GridCells.Fixed(2)
-                ) {
-                    items(state.persons) { value ->
-                        Text(
-                            "${value.name}${
-                                viewModel.getAchievement(
-                                    value.total
-                                )
-                            }: ${((value.total * betLevel)).formatToReadable()}",
-                            fontSize = TextUnit(value = 16f, type = TextUnitType.Sp)
-                        )
-                    }
-                }
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                
+                // Achievement & Result Summary
                 if (state.persons.isNotEmpty()) {
-                    Button(
-                        modifier = Modifier
-                            .padding(start = 16.dp, top = 16.dp, end = 16.dp)
-                            .align(Alignment.End), onClick = {
-                            viewModel.showConfirmDialog(
-                                content = "Bạn có chắc chắn muốn xóa toàn bộ người chơi",
-                                title = "Xóa toàn bộ người chơi",
-                                function = { viewModel.deleteAllPerson() })
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            userScrollEnabled = false
+                        ) {
+                            items(state.persons) { person ->
+                                val score = person.total * betLevel
+                                val scoreColor = if (score >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = viewModel.getAchievement(person.total),
+                                            fontSize = 20.sp,
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = person.name ?: "Player",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1
+                                            )
+                                            Text(
+                                                text = score.formatToReadable(),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = scoreColor.copy(alpha = if (isProcessing) 0.38f else 1f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Sound Button in the very middle of the player list
 
-                        }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Xóa")
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(55.dp)
+                                    .background(
+                                        if (isProcessing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.background, 
+                                        shape = CircleShape
+                                    )
+                                    .padding(6.dp)
+                                    .then(
+                                        if (!isProcessing) {
+                                            Modifier.clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = ripple(radius = 23.dp, bounded = false)
+                                            ) { viewModel.playAllPlayersInfo() }
+                                        } else Modifier
+                                    ),
+                                shape = CircleShape,
+                                color = if (isProcessing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
+                                tonalElevation = 4.dp,
+                                shadowElevation = 4.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.VolumeUp,
+                                        contentDescription = "Đọc thông tin",
+                                        tint = if (isProcessing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+
                     }
+
+
                 }
-                TableScreen()
+
+                // Table Screen (Includes "Add Match" at bottom and auto-scroll)
+                Box(modifier = Modifier.weight(1f)) {
+                    TableScreen()
+                }
+
                 DialogWidget()
                 DialogWidgetBetLevel()
                 StageDialogWidget()

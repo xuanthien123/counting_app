@@ -1,39 +1,29 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker.component
 
-import android.util.Log
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
 import coil.decode.GifDecoder
 import coil.request.ImageRequest
 import com.aquarina.countingapp.R
@@ -44,31 +34,51 @@ import com.aquarina.countingapp.presentation.features.caculating_china_poker.Per
 fun RowScope.TableCell(
     text: String,
     weight: Float,
-    color: Color = Color.Transparent,
-    clickable: Boolean = false,
+    isHeader: Boolean = false,
+    isFirstColumn: Boolean = false,
+    isNegative: Boolean = false,
+    isPositive: Boolean = false,
+    enabled: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
+    val backgroundColor = when {
+        isHeader -> MaterialTheme.colorScheme.primaryContainer
+        isFirstColumn -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        else -> Color.Transparent
+    }
+    
+    val textColor = when {
+        isHeader -> MaterialTheme.colorScheme.onPrimaryContainer
+        isNegative -> Color(0xFFC62828)
+        isPositive -> Color(0xFF2E7D32)
+        else -> MaterialTheme.colorScheme.onSurface
+    }.run { if (enabled) this else this.copy(alpha = 0.38f) }
+
     Box(
         modifier = Modifier
-            .border(.5.dp, Color.Gray)
-
             .weight(weight)
-            .background(color)
+            .background(backgroundColor)
+            .height(IntrinsicSize.Min)
             .then(
-                if (clickable) {
+                if (onClick != null && enabled) {
                     Modifier.clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(),
-                        onClick = onClick!!
-                    ).padding(top = 8.dp, bottom = 8.dp)
-                } else {
-                    Modifier.padding(top = 8.dp, bottom = 8.dp)
-                }
-            ),
+                        onClick = onClick
+                    )
+                } else Modifier
+            )
+            .padding(vertical = 10.dp, horizontal = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isHeader || isFirstColumn) FontWeight.Bold else FontWeight.Normal,
+            color = textColor,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            fontSize = 14.sp
         )
     }
 }
@@ -77,155 +87,124 @@ fun RowScope.TableCell(
 fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
     val numberOfStage = viewModel.numberOfStage.value
     val state = viewModel.state.value
-    val column1Weight = .23f // 23%
-    val columnId = .08f
+    val isProcessing = state.isProcessing
+    val column1Weight = .23f 
+    val columnId = .12f
     val listState = rememberLazyListState()
 
-    if (state.persons.size < 2) {
+    // Auto-scroll to bottom when number of stages increases
+    LaunchedEffect(numberOfStage) {
+        if (numberOfStage > 0) {
+            listState.animateScrollToItem(numberOfStage)
+        }
+    }
+
+    if (state.persons.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                Box(Modifier.size(50.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(R.drawable.blue_archive_alisu)
                         .decoderFactory(GifDecoder.Factory())
                         .build(),
-                    modifier = Modifier.size(300.dp),
+                    modifier = Modifier.size(180.dp).clip(RoundedCornerShape(16.dp)),
                     contentDescription = null
                 )
-                Box(Modifier.size(12.dp))
+                Spacer(Modifier.height(16.dp))
                 Text(
-                    "Vui lòng thêm ít nhất 2 người chơi",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.W500,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    "Vui lòng thêm người chơi để bắt đầu",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
         }
     } else {
-        Box(
+        Column(
             Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
         ) {
-            Column(
-                Modifier
-                    .border(1.dp, Color.Gray)
+            // Header: Player Names
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer)
             ) {
-                Row(Modifier.background(Color.LightGray)) {
-                    TableCell(text = "", weight = columnId, color = Color.LightGray)
-                    for (number in 0..state.persons.size - 1) {
-                        if (state.persons.size < number + 1) {
-                            TableCell(text = "?", weight = column1Weight, color = Color.LightGray)
-                        } else {
-                            TableCell(
-                                text = state.persons[number].name ?: "--",
-                                weight = column1Weight,
-                                color = Color.LightGray
-                            )
-                        }
-                    }
-//                TableCell(text = "Column 1", weight = column1Weight)
-//                TableCell(text = "Column 2", weight = column1Weight)
-//                TableCell(text = "Column 3", weight = column1Weight)
-//                TableCell(text = "Column 4", weight = column1Weight)
+                TableCell(text = "#", weight = columnId, isHeader = true)
+                state.persons.forEachIndexed { index, person ->
+                    TableCell(
+                        text = person.name ?: "--",
+                        weight = column1Weight,
+                        isHeader = true,
+                        enabled = !isProcessing,
+                        onClick = { viewModel.showEditName(true, index) }
+                    )
                 }
+            }
+            
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
+            // Body: Match History
+            Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    // Here are all the lines of your table.
-                    items(numberOfStage) {
+                    items(numberOfStage) { stageIndex ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(
-                                        // hiệu ứng gợn sóng
-                                        bounded = true,          // true = ripple theo shape, false = ripple tròn
-                                    )
-                                ) {
-                                    viewModel.showEditStage(stage = it)
-                                }
+                                .then(
+                                    if (!isProcessing) {
+                                        Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple()
+                                        ) { viewModel.showEditStage(stage = stageIndex) }
+                                    } else Modifier
+                                )
                         ) {
-                            TableCell(text = "${it + 1}", weight = columnId)
-                            for (number in 0..state.persons.size - 1) {
-                                if (state.persons.size < number + 1) {
-                                    TableCell(text = "-", weight = column1Weight)
-                                } else {
-                                    if (state.persons[number].stages.size < it + 1) {
-                                        TableCell(
-                                            text = "-",
-                                            weight = column1Weight
-                                        )
-                                    } else {
-                                        TableCell(
-                                            text = state.persons[number].stages[it].formatToReadable(),
-                                            weight = column1Weight
-                                        )
-                                    }
-                                }
+                            TableCell(
+                                text = "${stageIndex + 1}", 
+                                weight = columnId, 
+                                isFirstColumn = true,
+                                enabled = !isProcessing
+                            )
+                            state.persons.forEach { person ->
+                                val score = if (person.stages.size > stageIndex) person.stages[stageIndex] else 0
+                                TableCell(
+                                    text = score.formatToReadable(),
+                                    weight = column1Weight,
+                                    isNegative = score < 0,
+                                    isPositive = score > 0,
+                                    enabled = !isProcessing
+                                )
                             }
                         }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                     }
+
+                    // "Add Match" Button at the bottom of the list
                     item {
-                        Box(
-                            Modifier
-                                .height(40.dp)
+                        Button(
+                            onClick = { viewModel.addNewStage() },
+                            enabled = !isProcessing,
+                            modifier = Modifier
                                 .fillMaxWidth()
-                                .border(.5.dp, Color.Gray)
-                                .background(Color.LightGray)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(
-                                        // hiệu ứng gợn sóng
-                                        bounded = true,          // true = ripple theo shape, false = ripple tròn
-                                    ),
-                                ) {
-                                    viewModel.addNewStage()
-                                },
-                            contentAlignment = Alignment.Center
+                                .padding(8.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Thêm màn chơi mới")
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Thêm ván mới")
                         }
                     }
                 }
-            }
-            Row(
-                Modifier
-                    .shadow(8.dp, clip = true)
-                    .background(Color.LightGray)
-                    .border(1.dp, Color.Gray)
-            ) {
-                TableCell(text = "", weight = columnId, color = Color.LightGray)
-                for (number in 0..state.persons.size - 1) {
-                    if (state.persons.size < number + 1) {
-                        TableCell(text = "?", weight = column1Weight, color = Color.LightGray)
-                    } else {
-
-                        TableCell(
-                            text = state.persons[number].name ?: "--",
-                            weight = column1Weight,
-                            color = Color.LightGray,
-                            clickable = true,
-                            onClick = {
-                                viewModel.showEditName(true, number)
-                            }
-                        )
-
-                    }
-                }
-//                TableCell(text = "Column 1", weight = column1Weight)
-//                TableCell(text = "Column 2", weight = column1Weight)
-//                TableCell(text = "Column 3", weight = column1Weight)
-//                TableCell(text = "Column 4", weight = column1Weight)
             }
         }
     }

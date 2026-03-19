@@ -12,6 +12,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.ripple
@@ -121,7 +122,7 @@ fun DialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                 }
             },
             dismissButton = {
-                Button(onClick = { viewModel.showDialogBox(false) }) {
+                TextButton(onClick = { viewModel.showDialogBox(false) }) {
                     Text("Hủy")
                 }
             }

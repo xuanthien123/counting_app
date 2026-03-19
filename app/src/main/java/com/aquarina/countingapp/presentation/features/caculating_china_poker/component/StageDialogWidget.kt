@@ -3,72 +3,72 @@ package com.aquarina.countingapp.presentation.features.caculating_china_poker.co
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.ripple
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.aquarina.countingapp.presentation.components.formatToReadable
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.PersonsViewModel
 
 
 @Composable
 fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
+    val state = viewModel.state.value
     val listWinLoseState = viewModel.listWinLoseState
     val showDialog = viewModel.showDialogEditStage.value
-    val persons = viewModel.state.value.persons
+    val persons = state.persons
     val focusManager = LocalFocusManager.current
 
-    Log.d("NameInput", "stage: ${listWinLoseState.value}")
+    // Auto-fill logic
+    val emptyIndices = listWinLoseState.value.mapIndexedNotNull { index, s ->
+        if (s.isEmpty() || s == "-") index else null
+    }
+    val canAutoFill = emptyIndices.size == 1
+    val autoFillIndex = emptyIndices.firstOrNull()
+    val autoFillValue = if (canAutoFill) {
+        -listWinLoseState.value.mapIndexed { index, s ->
+            if (index == autoFillIndex) 0 else (s.toIntOrNull() ?: 0)
+        }.sum()
+    } else 0
+
     if (showDialog) {
         AlertDialog(
             onDismissRequest = {
-                viewModel.showDialogEditStage(false)
-                focusManager.clearFocus()
+                if (!state.isProcessing) {
+                    viewModel.showDialogEditStage(false)
+                    focusManager.clearFocus()
+                }
             },
             title = {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = "Ván ${viewModel.stage + 1}")
-                    Box(
-                        modifier = Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(
-                                bounded = true
-                            ),
-                        ) {
+                    Text(
+                        text = "Ván đấu ${viewModel.stage + 1}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        enabled = !state.isProcessing,
+                        onClick = {
                             viewModel.showConfirmDialog(
                                 content = "Bạn có chắc chắn muốn xóa ván này không?",
                                 title = "Xóa ván đấu?",
@@ -76,13 +76,13 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                                     viewModel.deleteStage()
                                     viewModel.showDialogEditStage(false)
                                 })
-
                         },
+                        modifier = Modifier.offset(x = 12.dp)
                     ) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "Xóa",
-                            modifier = Modifier.padding(4.dp)
+                            tint = if (state.isProcessing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -91,48 +91,144 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    listWinLoseState.value.forEachIndexed { index, value ->
-                        TextField(
-                            value = value,
-                            onValueChange = { newName ->
-                                // Cập nhật giá trị tên người dùng vào danh sách
-                                listWinLoseState.value =
-                                    listWinLoseState.value.toMutableList().apply {
-                                        this[index] = newName
-                                    }
-                            },
-                            label = { Text(persons[index].name) },
-                            shape = RoundedCornerShape(12.dp), // 👈 Bo góc nè
-                            colors = TextFieldDefaults.colors(
-                                unfocusedIndicatorColor = Color.Transparent,
-                                unfocusedLabelColor = Color.Gray
-                            ),
+                    if (state.isProcessing) {
+                        LinearProgressIndicator(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            keyboardOptions = KeyboardOptions.Default.copy(
-                                keyboardType = KeyboardType.Number
-                            )
+                                .padding(bottom = 16.dp)
                         )
+                    } else {
+                        Text(
+                            text = "Nhập điểm cho từng người chơi. Tổng điểm phải bằng 0.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+                    
+                    listWinLoseState.value.forEachIndexed { index, value ->
+                        if (index < persons.size) {
+                            OutlinedTextField(
+                                value = value,
+                                enabled = !state.isProcessing,
+                                onValueChange = { newValue ->
+                                    if (newValue.isEmpty() || newValue == "-" || newValue.toIntOrNull() != null) {
+                                        listWinLoseState.value =
+                                            listWinLoseState.value.toMutableList().apply {
+                                                this[index] = newValue
+                                            }
+                                    }
+                                },
+                                label = { Text(persons[index].name) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                singleLine = true,
+                                trailingIcon = {
+                                    val num = value.toIntOrNull() ?: 0
+                                    if (num != 0) {
+                                        Text(
+                                            text = if (num > 0) "Thắng" else "Thua",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (num > 0) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                    } else if (canAutoFill && index == autoFillIndex && !state.isProcessing) {
+                                        IconButton(onClick = {
+                                            val newList = listWinLoseState.value.toMutableList()
+                                            newList[index] = autoFillValue.toString()
+                                            listWinLoseState.value = newList
+                                        }) {
+                                            Icon(
+                                                Icons.Default.AutoAwesome,
+                                                contentDescription = "Tự động điền",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    
+                    val currentSum = sumOfMatch(listWinLoseState.value)
+                    
+                    if (canAutoFill && !state.isProcessing) {
+                        TextButton(
+                            onClick = {
+                                val newList = listWinLoseState.value.toMutableList()
+                                newList[autoFillIndex!!] = autoFillValue.toString()
+                                listWinLoseState.value = newList
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "Điền ${persons[autoFillIndex!!].name}: $autoFillValue",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = if (currentSum == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tổng điểm: $currentSum",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentSum == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            if (currentSum != 0) {
+                                Text(
+                                    text = " (Phải bằng 0)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
                 Button(
-                    enabled = sumOfMatch(listWinLoseState.value) == 0,
+                    enabled = sumOfMatch(listWinLoseState.value) == 0 && !state.isProcessing,
                     onClick = {
                         viewModel.updateStage()
-                        viewModel.showDialogEditStage(false)
-//                    viewModel.changeBetLevel(name)
-//                    name = ""
-                    }) {
-                    Text("OK")
+                    },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    if (state.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Lưu")
+                    }
                 }
             },
             dismissButton = {
-                Button(onClick = { viewModel.showDialogEditStage(false) }) {
+                TextButton(
+                    enabled = !state.isProcessing,
+                    onClick = { viewModel.showDialogEditStage(false) }
+                ) {
                     Text("Hủy")
                 }
             }
