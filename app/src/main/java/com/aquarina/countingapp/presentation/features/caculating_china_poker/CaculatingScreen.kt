@@ -1,8 +1,12 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker
 
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,13 +22,13 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.stylusHoverIcon
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,9 +49,21 @@ fun SharedTransitionScope.CalculatingScreen(
 ) {
     val state = viewModel.state.value
     val betLevel = viewModel.betLevel.value
+    val showCurrency = viewModel.showCurrency.value
     val focusManager = LocalFocusManager.current
     val isProcessing = state.isProcessing
     
+    val infiniteTransition = rememberInfiniteTransition(label = "processing")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
     Scaffold(
         modifier = Modifier.sharedElement(
             sharedTransitionScope.rememberSharedContentState(key = "screen-${Screen.Calculating.route}"),
@@ -62,11 +78,13 @@ fun SharedTransitionScope.CalculatingScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = "Mức cược: ${betLevel.formatToReadable()}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                        if (showCurrency) {
+                            Text(
+                                text = "Mức cược: ${betLevel.formatToReadable()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -136,34 +154,94 @@ fun SharedTransitionScope.CalculatingScreen(
                             userScrollEnabled = false
                         ) {
                             items(state.persons) { person ->
-                                val score = person.total * betLevel
+                                val score = if (showCurrency) person.total * betLevel else person.total
                                 val scoreColor = if (score >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                val isHighlighted = person.id == state.highlightedPersonId
                                 
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    color = if (isHighlighted) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    },
+                                    border = if (isHighlighted) {
+                                        androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                                    } else null,
+                                    tonalElevation = if (isHighlighted) 4.dp else 0.dp
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = viewModel.getAchievement(person.total),
-                                            fontSize = 20.sp,
-                                            modifier = Modifier.padding(end = 8.dp)
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(end = 8.dp)
+                                                .size(32.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            AnimatedContent(
+                                                targetState = person.total,
+                                                transitionSpec = {
+                                                    if (targetState > initialState) {
+                                                        // Tăng điểm: Trượt LÊN (Đảo chiều logic theo phản hồi)
+                                                        (slideInVertically { height -> -height } + fadeIn() togetherWith
+                                                                slideOutVertically { height -> height } + fadeOut())
+                                                            .using(SizeTransform(clip = false))
+                                                    } else if (targetState < initialState) {
+                                                        // Giảm điểm: Trượt XUỐNG (Đảo chiều logic theo phản hồi)
+                                                        (slideInVertically { height -> height } + fadeIn() togetherWith
+                                                                slideOutVertically { height -> -height } + fadeOut())
+                                                            .using(SizeTransform(clip = false))
+                                                    } else {
+                                                        fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
+                                                    }
+                                                }, label = "achievement_anim"
+                                            ) { targetTotal ->
+                                                Text(
+                                                    text = viewModel.getAchievement(targetTotal),
+                                                    fontSize = 20.sp
+                                                )
+                                            }
+                                        }
                                         Column {
                                             Text(
                                                 text = person.name ?: "Player",
                                                 style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1
+                                                fontWeight = if (isHighlighted) FontWeight.ExtraBold else FontWeight.Medium,
+                                                maxLines = 1,
+                                                color = if (isHighlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                             )
-                                            Text(
-                                                text = score.formatToReadable(),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = scoreColor.copy(alpha = if (isProcessing) 0.38f else 1f)
-                                            )
+                                            AnimatedContent(
+                                                targetState = score,
+                                                transitionSpec = {
+                                                    if (targetState > initialState) {
+                                                        // Tăng điểm: Trượt LÊN
+                                                        (slideInVertically { height -> -height } + fadeIn() togetherWith
+                                                                slideOutVertically { height -> height } + fadeOut())
+                                                            .using(SizeTransform(clip = false))
+                                                    } else if (targetState < initialState) {
+                                                        // Giảm điểm: Trượt XUỐNG
+                                                        (slideInVertically { height -> height } + fadeIn() togetherWith
+                                                                slideOutVertically { height -> -height } + fadeOut())
+                                                            .using(SizeTransform(clip = false))
+                                                    } else {
+                                                        fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
+                                                    }
+                                                },
+                                                label = "score_anim"
+                                            ) { targetScore ->
+                                                Text(
+                                                    text = if (showCurrency) "₫ ${targetScore.formatToReadable()}" else "${targetScore.formatToReadable()} điểm",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isHighlighted) {
+                                                        scoreColor
+                                                    } else {
+                                                        scoreColor.copy(alpha = if (isProcessing) 0.38f else 1f)
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -171,7 +249,6 @@ fun SharedTransitionScope.CalculatingScreen(
                         }
                         
                         // Sound Button in the very middle of the player list
-
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.Center)
@@ -181,37 +258,56 @@ fun SharedTransitionScope.CalculatingScreen(
                                         shape = CircleShape
                                     )
                                     .padding(6.dp)
-                                    .then(
-                                        if (!isProcessing) {
-                                            Modifier.clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = ripple(radius = 23.dp, bounded = false)
-                                            ) { viewModel.playAllPlayersInfo() }
-                                        } else Modifier
-                                    ),
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(radius = 23.dp, bounded = false)
+                                    ) {
+                                        if (isProcessing) {
+                                            viewModel.stopPlaying()
+                                        } else {
+                                            viewModel.playAllPlayersInfo()
+                                        }
+                                    },
                                 shape = CircleShape,
+                                border = if (isProcessing) {
+                                    androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                                } else null,
                                 color = if (isProcessing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
                                 tonalElevation = 4.dp,
                                 shadowElevation = 4.dp
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.AutoMirrored.Filled.VolumeUp,
-                                        contentDescription = "Đọc thông tin",
-                                        tint = if (isProcessing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(24.dp)
+                                        if (isProcessing) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp,
+                                        contentDescription = if (isProcessing) "Dừng phát" else "Đọc thông tin",
+                                        tint = if (isProcessing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .then(if (isProcessing) Modifier.rotate(rotation) else Modifier)
                                     )
                                 }
                             }
-
                     }
-
-
                 }
 
                 // Table Screen (Includes "Add Match" at bottom and auto-scroll)
                 Box(modifier = Modifier.weight(1f)) {
                     TableScreen()
+                    
+                    // Overlay for the table area only when processing
+                    if (isProcessing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            awaitPointerEvent()
+                                        }
+                                    }
+                                }
+                        )
+                    }
                 }
 
                 DialogWidget()

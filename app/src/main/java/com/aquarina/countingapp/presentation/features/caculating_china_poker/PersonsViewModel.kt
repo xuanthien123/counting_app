@@ -15,13 +15,17 @@ import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.model.UserTag
 import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
+import com.aquarina.countingapp.presentation.components.formatToReadable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import javax.inject.Inject
 
@@ -50,6 +54,9 @@ class PersonsViewModel @Inject constructor(
 
     private val _betLevel = mutableIntStateOf(1)
     val betLevel: State<Int> = _betLevel
+    
+    private val _showCurrency = mutableStateOf(false)
+    val showCurrency: State<Boolean> = _showCurrency
 
     private val _numberOfStage = mutableIntStateOf(0)
     val numberOfStage: State<Int> = _numberOfStage
@@ -60,6 +67,7 @@ class PersonsViewModel @Inject constructor(
     private var isTtsReady = false
     private var mediaPlayer: MediaPlayer? = null
     private var playAllJob: Job? = null
+    private var updateStageJob: Job? = null
     private var ttsDeferred: CompletableDeferred<String>? = null
 
     init {
@@ -68,17 +76,21 @@ class PersonsViewModel @Inject constructor(
             getPersons()
             getUserTags()
         }
-        tts = TextToSpeech(app, this)
-        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) {
-                ttsDeferred?.complete(utteranceId ?: "")
-            }
-            override fun onError(utteranceId: String?) {
-                ttsDeferred?.complete(utteranceId ?: "")
-                Log.e("TTS", "Error speaking: $utteranceId")
-            }
-        })
+        try {
+            tts = TextToSpeech(app, this)
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {}
+                override fun onDone(utteranceId: String?) {
+                    ttsDeferred?.complete(utteranceId ?: "")
+                }
+                override fun onError(utteranceId: String?) {
+                    ttsDeferred?.complete(utteranceId ?: "")
+                    Log.e("TTS", "Error speaking: $utteranceId")
+                }
+            })
+        } catch (e: Exception) {
+            Log.e("TTS", "Could not initialize TTS: ${e.message}")
+        }
     }
 
     override fun onInit(status: Int) {
@@ -91,6 +103,7 @@ class PersonsViewModel @Inject constructor(
             isTtsReady = true
         } else {
             Log.e("TTS", "Khởi tạo TTS thất bại")
+            isTtsReady = false
         }
     }
 
@@ -100,34 +113,63 @@ class PersonsViewModel @Inject constructor(
         }
     }
 
+    fun stopPlaying() {
+        playAllJob?.cancel()
+        updateStageJob?.cancel()
+        if (isTtsReady) tts?.stop()
+        mediaPlayer?.stop()
+        mediaPlayer?.release()
+        mediaPlayer = null
+        _state.value = state.value.copy(
+            isProcessing = false,
+            highlightedPersonId = null
+        )
+    }
+
     fun playAllPlayersInfo() {
         playAllJob?.cancel()
         playAllJob = viewModelScope.launch {
-//            _state.value = state.value.copy(isProcessing = true)
+            _state.value = state.value.copy(isProcessing = true)
             try {
-                tts?.stop()
+                if (isTtsReady) tts?.stop()
                 mediaPlayer?.stop()
                 state.value.persons.forEach { person ->
+                    _state.value = state.value.copy(highlightedPersonId = person.id)
+                    
                     val achievementText = getAchievementText(person.total)
+                    val scoreText = if (showCurrency.value) {
+                        val money = person.total * betLevel.value
+                        if (money >= 0) "thắng ${money.formatToReadable()}" else "nợ ${kotlin.math.abs(money).formatToReadable()}"
+                    } else {
+                        "${person.total} điểm"
+                    }
+                    
                     val utteranceId = "all_info_${person.name}_${System.currentTimeMillis()}"
 
-                    ttsDeferred = CompletableDeferred()
-                    speak(
-                        "${person.name} $achievementText, ${person.total} điểm",
-                        TextToSpeech.QUEUE_FLUSH,
-                        utteranceId
-                    )
-                    try {
-                        ttsDeferred?.await()
-                    } catch (e: Exception) {
-                        Log.e("TTS", "Error waiting for TTS: ${e.message}")
+                    if (isTtsReady) {
+                        ttsDeferred = CompletableDeferred()
+                        speak(
+                            "${person.name} $achievementText, $scoreText",
+                            TextToSpeech.QUEUE_FLUSH,
+                            utteranceId
+                        )
+                        try {
+                            withTimeoutOrNull(5000) {
+                                ttsDeferred?.await()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("TTS", "Error waiting for TTS: ${e.message}")
+                        }
                     }
 
                     playAchievementSound(person.total)
                     delay(300) // Nghỉ một chút giữa các người chơi
                 }
             } finally {
-//                _state.value = state.value.copy(isProcessing = false)
+                _state.value = state.value.copy(
+                    isProcessing = false,
+                    highlightedPersonId = null
+                )
             }
         }
     }
@@ -142,7 +184,7 @@ class PersonsViewModel @Inject constructor(
             total == 0 -> "đang hòa vốn"
             total > -15 -> "là con gà"
             total > -30 -> "đang nôn mửa"
-            total > -50 -> "là cục cứt"
+            total > -50 -> "đang bốc cứt"
             total > -75 -> "đang vay ngân hàng để chơi"
             else -> "đang nằm hòm"
         }
@@ -181,6 +223,10 @@ class PersonsViewModel @Inject constructor(
         }
         // ---------------------------------------------------------
         
+        playSound(rawName, durationLimit)
+    }
+
+    private suspend fun playSound(rawName: String, durationLimit: Long? = null) {
         val soundResId = app.resources.getIdentifier(rawName, "raw", app.packageName)
         if (soundResId == 0) {
             Log.e("Sound", "Could not find sound resource for $rawName")
@@ -237,6 +283,18 @@ class PersonsViewModel @Inject constructor(
     }
 
     private suspend fun checkMilestone(name: String, oldTotal: Int, newTotal: Int) {
+        // Detect rank change
+        val oldRank = getRankLevel(oldTotal)
+        val newRank = getRankLevel(newTotal)
+
+        if (newRank > oldRank) {
+            playSound("uprank")
+            delay(500)
+        } else if (newRank < oldRank) {
+            playSound("downrank")
+            delay(500)
+        }
+
         val milestoneMsg = when {
             oldTotal < 75 && newTotal >= 75 -> "Chúc mừng $name đã đạt tới cảnh giới huyền thoại!"
             oldTotal > -75 && newTotal <= -75 -> "Vĩnh biệt $name, hòm đã sẵn sàng!"
@@ -248,15 +306,35 @@ class PersonsViewModel @Inject constructor(
         }
         
         if (milestoneMsg != null) {
-            val utteranceId = "milestone_${name}_$newTotal"
-            ttsDeferred = CompletableDeferred()
-            speak(milestoneMsg, TextToSpeech.QUEUE_ADD, utteranceId)
-            try {
-                ttsDeferred?.await()
-            } catch (e: Exception) {
-                Log.e("TTS", "Error waiting for milestone TTS: ${e.message}")
+            if (isTtsReady) {
+                val utteranceId = "milestone_${name}_$newTotal"
+                ttsDeferred = CompletableDeferred()
+                speak(milestoneMsg, TextToSpeech.QUEUE_ADD, utteranceId)
+                try {
+                    withTimeoutOrNull(5000) {
+                        ttsDeferred?.await()
+                    }
+                } catch (e: Exception) {
+                    Log.e("TTS", "Error waiting for milestone TTS: ${e.message}")
+                }
             }
             playAchievementSound(newTotal)
+        }
+    }
+
+    fun getRankLevel(total: Int): Int {
+        return when {
+            total >= 75 -> 10
+            total >= 50 -> 9
+            total >= 30 -> 8
+            total >= 15 -> 7
+            total >= 1 -> 6
+            total == 0 -> 5
+            total > -15 -> 4
+            total > -30 -> 3
+            total > -50 -> 2
+            total > -75 -> 1
+            else -> 0
         }
     }
 
@@ -344,8 +422,9 @@ class PersonsViewModel @Inject constructor(
         gameInfo = personUseCases.getGameInfo()
         if (gameInfo != null) {
             _betLevel.intValue = gameInfo!!.betLevel
+            _showCurrency.value = gameInfo!!.showCurrency
         } else {
-            personUseCases.insertGameInfo(GameInfo(betLevel = 1))
+            personUseCases.insertGameInfo(GameInfo(betLevel = 1, showCurrency = false))
             gameInfo = personUseCases.getGameInfo()
         }
     }
@@ -443,12 +522,13 @@ class PersonsViewModel @Inject constructor(
         _showDialogSelectUser.value = value
     }
 
-    fun changeBetLevel(name: String) {
-        val value = name.toIntOrNull() ?: 0
-        _betLevel.intValue = value
+    fun updateGameSettings(betLevel: Int, showCurrency: Boolean) {
+        _betLevel.intValue = betLevel
+        _showCurrency.value = showCurrency
         viewModelScope.launch {
             personUseCases.updateGameInfo(
-                gameInfo?.copy(betLevel = value) ?: GameInfo(betLevel = value)
+                gameInfo?.copy(betLevel = betLevel, showCurrency = showCurrency) 
+                ?: GameInfo(betLevel = betLevel, showCurrency = showCurrency)
             )
         }
     }
@@ -497,32 +577,62 @@ class PersonsViewModel @Inject constructor(
 
     fun updateStage() {
         _showDialogEditStage.value = false
-        viewModelScope.launch {
-            _state.value = state.value.copy(isProcessing = true)
-            try {
-                for (index in 0 until listWinLoseState.value.size) {
-                    if (index < state.value.persons.size) {
-                        val person = state.value.persons[index]
-                        val listStages: MutableList<Int> = person.stages.toMutableList()
-                        if (stage < listStages.size) {
-                            val oldTotal = person.total
-                            listStages[stage] = listWinLoseState.value[index].toIntOrNull() ?: 0
-                            val newTotal = listStages.sum()
-                            
-                            checkMilestone(person.name, oldTotal, newTotal)
+        updateStageJob?.cancel()
+        updateStageJob = viewModelScope.launch {
+            // 1. Calculate all necessary updates first
+            val updates = state.value.persons.mapIndexedNotNull { index, person ->
+                if (index < listWinLoseState.value.size) {
+                    val listStages = person.stages.toMutableList()
+                    if (stage < listStages.size) {
+                        val oldTotal = person.total
+                        val newValue = listWinLoseState.value[index].toIntOrNull() ?: 0
+                        listStages[stage] = newValue
+                        val newTotal = listStages.sum()
+                        val updatedPerson = person.copy(stages = listStages, total = newTotal)
+                        Triple(updatedPerson, oldTotal, newTotal)
+                    } else null
+                } else null
+            }
 
-                            personUseCases.updatePerson(person = person.copy(
-                                stages = listStages,
-                                total = newTotal
-                            ))
+            // Check if any person has a rank change
+            val hasAchievementChange = updates.any { (_, oldTotal, newTotal) ->
+                getRankLevel(oldTotal) != getRankLevel(newTotal)
+            }
+
+            if (hasAchievementChange) {
+                _state.value = state.value.copy(isProcessing = true)
+                try {
+                    // 2. Step-by-step update with rank sound and UI refresh
+                    updates.forEach { (updatedPerson, oldTotal, newTotal) ->
+                        _state.value = state.value.copy(highlightedPersonId = updatedPerson.id)
+                        
+                        // Update DB for each person to trigger gradual UI update (including rank icon change)
+                        personUseCases.updatePerson(updatedPerson)
+                        // Play rank change sound and milestone TTS
+                        checkMilestone(updatedPerson.name, oldTotal, newTotal)
+                    }
+                } catch (e: Exception) {
+                    Log.e("UpdateStage", "Error updating stage: ${e.message}")
+                } finally {
+                    // 3. ON STOP (CANCEL) OR FINISH:
+                    // Ensure all data is saved immediately (skip remaining sounds)
+                    withContext(NonCancellable) {
+                        updates.forEach { (updatedPerson, _, _) ->
+                            personUseCases.updatePerson(updatedPerson)
                         }
+                        _state.value = state.value.copy(
+                            isProcessing = false,
+                            highlightedPersonId = null
+                        )
                     }
                 }
-
-            } catch (e: Exception) {
-                Log.e("UpdateStage", "Error updating stage: ${e.message}")
-            } finally {
-                _state.value = state.value.copy(isProcessing = false)
+            } else {
+                // No rank change, just update instantly without processing state
+                withContext(NonCancellable) {
+                    updates.forEach { (updatedPerson, _, _) ->
+                        personUseCases.updatePerson(updatedPerson)
+                    }
+                }
             }
         }
     }
@@ -595,8 +705,11 @@ class PersonsViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         playAllJob?.cancel()
-        tts?.stop()
-        tts?.shutdown()
+        updateStageJob?.cancel()
+        if (isTtsReady) {
+            tts?.stop()
+            tts?.shutdown()
+        }
         mediaPlayer?.release()
     }
 }

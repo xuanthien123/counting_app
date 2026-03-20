@@ -7,5 +7,6 @@ data class PersonState(
     val persons: List<Person> = emptyList(),
     val userTags: List<UserTag> = emptyList(),
     val selectedTagIds: Set<Int> = emptySet(),
-    val isProcessing: Boolean = false
+    val isProcessing: Boolean = false,
+    val highlightedPersonId: Int? = null
 )

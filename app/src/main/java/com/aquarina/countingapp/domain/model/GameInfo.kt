@@ -7,5 +7,6 @@ import androidx.room.PrimaryKey
 @Entity
 data class GameInfo(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val betLevel: Int = 1
+    val betLevel: Int = 1,
+    val showCurrency: Boolean = false
 )
