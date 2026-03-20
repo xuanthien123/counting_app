@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -282,19 +283,7 @@ class PersonsViewModel @Inject constructor(
         timeoutJob?.cancel() // Cleanup timeout job if sound finished early
     }
 
-    private suspend fun checkMilestone(name: String, oldTotal: Int, newTotal: Int) {
-        // Detect rank change
-        val oldRank = getRankLevel(oldTotal)
-        val newRank = getRankLevel(newTotal)
-
-        if (newRank > oldRank) {
-            playSound("uprank")
-            delay(500)
-        } else if (newRank < oldRank) {
-            playSound("downrank")
-            delay(500)
-        }
-
+    private suspend fun checkMilestone(name: String, oldTotal: Int, newTotal: Int): Boolean {
         val milestoneMsg = when {
             oldTotal < 75 && newTotal >= 75 -> "Chúc mừng $name đã đạt tới cảnh giới huyền thoại!"
             oldTotal > -75 && newTotal <= -75 -> "Vĩnh biệt $name, hòm đã sẵn sàng!"
@@ -318,8 +307,9 @@ class PersonsViewModel @Inject constructor(
                     Log.e("TTS", "Error waiting for milestone TTS: ${e.message}")
                 }
             }
-            playAchievementSound(newTotal)
+            return true
         }
+        return false
     }
 
     fun getRankLevel(total: Int): Int {
@@ -594,44 +584,51 @@ class PersonsViewModel @Inject constructor(
                 } else null
             }
 
-            // Check if any person has a rank change
-            val hasAchievementChange = updates.any { (_, oldTotal, newTotal) ->
-                getRankLevel(oldTotal) != getRankLevel(newTotal)
-            }
+            if (updates.isEmpty()) return@launch
 
-            if (hasAchievementChange) {
-                _state.value = state.value.copy(isProcessing = true)
-                try {
-                    // 2. Step-by-step update with rank sound and UI refresh
-                    updates.forEach { (updatedPerson, oldTotal, newTotal) ->
-                        _state.value = state.value.copy(highlightedPersonId = updatedPerson.id)
-                        
-                        // Update DB for each person to trigger gradual UI update (including rank icon change)
+            _state.value = state.value.copy(isProcessing = true)
+            try {
+                // 2. Step-by-step update with synchronized sound and UI refresh
+                updates.forEach { (updatedPerson, oldTotal, newTotal) ->
+                    _state.value = state.value.copy(highlightedPersonId = updatedPerson.id)
+                    
+                    val directionSound = when {
+                        newTotal > oldTotal -> "uprank"
+                        newTotal < oldTotal -> "downrank"
+                        else -> "notchange"
+                    }
+
+                    // SYNC: Start direction sound and UI animation simultaneously
+                    // Wait for direction sound to finish before moving on
+                    coroutineScope {
+                        val soundJob = launch { playSound(directionSound) }
                         personUseCases.updatePerson(updatedPerson)
-                        // Play rank change sound and milestone TTS
-                        checkMilestone(updatedPerson.name, oldTotal, newTotal)
+                        soundJob.join()
                     }
-                } catch (e: Exception) {
-                    Log.e("UpdateStage", "Error updating stage: ${e.message}")
-                } finally {
-                    // 3. ON STOP (CANCEL) OR FINISH:
-                    // Ensure all data is saved immediately (skip remaining sounds)
-                    withContext(NonCancellable) {
-                        updates.forEach { (updatedPerson, _, _) ->
-                            personUseCases.updatePerson(updatedPerson)
-                        }
-                        _state.value = state.value.copy(
-                            isProcessing = false,
-                            highlightedPersonId = null
-                        )
+
+                    // Check milestone (speaks if milestone reached and waits for TTS)
+                    val milestoneReached = checkMilestone(updatedPerson.name, oldTotal, newTotal)
+                    
+                    // Only play achievement sound if it was a milestone
+                    if (milestoneReached) {
+                        playAchievementSound(newTotal)
                     }
+                    
+                    delay(300)
                 }
-            } else {
-                // No rank change, just update instantly without processing state
+            } catch (e: Exception) {
+                Log.e("UpdateStage", "Error updating stage: ${e.message}")
+            } finally {
+                // 3. ON STOP (CANCEL) OR FINISH:
+                // Ensure all data is saved immediately
                 withContext(NonCancellable) {
                     updates.forEach { (updatedPerson, _, _) ->
                         personUseCases.updatePerson(updatedPerson)
                     }
+                    _state.value = state.value.copy(
+                        isProcessing = false,
+                        highlightedPersonId = null
+                    )
                 }
             }
         }
