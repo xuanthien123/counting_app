@@ -208,9 +208,9 @@ fun SharedTransitionScope.CalculatingScreen(
                                             Text(
                                                 text = person.name ?: "Player",
                                                 style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = if (isHighlighted) FontWeight.ExtraBold else FontWeight.Medium,
+                                                fontWeight = if (isHighlighted) FontWeight.SemiBold else FontWeight.Medium,
                                                 maxLines = 1,
-                                                color = if (isHighlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                             AnimatedContent(
                                                 targetState = score,
