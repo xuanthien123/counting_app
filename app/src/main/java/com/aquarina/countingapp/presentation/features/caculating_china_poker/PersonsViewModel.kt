@@ -5,6 +5,7 @@ import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,6 +67,7 @@ class PersonsViewModel @Inject constructor(
 
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
+    private var hasShownTtsError = false
     private var mediaPlayer: MediaPlayer? = null
     private var playAllJob: Job? = null
     private var updateStageJob: Job? = null
@@ -91,6 +93,7 @@ class PersonsViewModel @Inject constructor(
             })
         } catch (e: Exception) {
             Log.e("TTS", "Could not initialize TTS: ${e.message}")
+            showTtsError("Thiết bị không thể khởi tạo dịch vụ giọng nói (TTS)")
         }
     }
 
@@ -99,12 +102,23 @@ class PersonsViewModel @Inject constructor(
             val result = tts?.setLanguage(Locale("vi", "VN"))
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 Log.e("TTS", "Ngôn ngữ tiếng Việt không hỗ trợ, thử tiếng Anh")
-                tts?.setLanguage(Locale.US)
+                val englishResult = tts?.setLanguage(Locale.US)
+                if (englishResult == TextToSpeech.LANG_MISSING_DATA || englishResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    showTtsError("Thiết bị không hỗ trợ giọng nói tiếng Việt/tiếng Anh")
+                }
             }
             isTtsReady = true
         } else {
             Log.e("TTS", "Khởi tạo TTS thất bại")
             isTtsReady = false
+            showTtsError("Lỗi khởi tạo giọng nói. Vui lòng kiểm tra cài đặt TTS trên máy.")
+        }
+    }
+
+    private fun showTtsError(message: String) {
+        if (!hasShownTtsError) {
+            Toast.makeText(app, message, Toast.LENGTH_LONG).show()
+            hasShownTtsError = true
         }
     }
 
@@ -164,7 +178,7 @@ class PersonsViewModel @Inject constructor(
                     }
 
                     playAchievementSound(person.total)
-                    delay(300) // Nghỉ một chút giữa các người chơi
+                    delay(300) 
                 }
             } finally {
                 _state.value = state.value.copy(
@@ -192,7 +206,6 @@ class PersonsViewModel @Inject constructor(
     }
 
     private suspend fun playAchievementSound(total: Int) {
-        // Map total score to resource name string
         val rawName = when {
             total >= 75 -> "s5"
             total >= 50 -> "s4"
@@ -207,9 +220,8 @@ class PersonsViewModel @Inject constructor(
             else -> "m5"
         }
 
-        // --- EDIT HERE TO CHANGE TIME LIMITS (in milliseconds) ---
         val durationLimit = when (rawName) {
-            "m1" -> 2500L // Play m1 for only 3 seconds
+            "m1" -> 2500L 
             "m2" -> 1500L
             "m3" -> null
             "m4" -> null
@@ -220,14 +232,17 @@ class PersonsViewModel @Inject constructor(
             "s3" -> 3500L
             "s4" -> null
             "s5" -> 6000L
-            else -> null // Play other sounds fully
+            else -> null 
         }
-        // ---------------------------------------------------------
         
         playSound(rawName, durationLimit)
     }
 
-    private suspend fun playSound(rawName: String, durationLimit: Long? = null) {
+    private suspend fun playSound(
+        rawName: String, 
+        durationLimit: Long? = null,
+        startTime: Int? = null
+    ) {
         val soundResId = app.resources.getIdentifier(rawName, "raw", app.packageName)
         if (soundResId == 0) {
             Log.e("Sound", "Could not find sound resource for $rawName")
@@ -236,7 +251,6 @@ class PersonsViewModel @Inject constructor(
 
         val deferred = CompletableDeferred<Unit>()
         
-        // Cleanup previous playback
         mediaPlayer?.stop()
         mediaPlayer?.release()
         
@@ -259,9 +273,13 @@ class PersonsViewModel @Inject constructor(
             true
         }
 
+        val startPos = startTime ?: 0
+        if (startPos > 0) {
+            player.seekTo(startPos)
+        }
+        
         player.start()
 
-        // Handle time limit if set
         var timeoutJob: Job? = null
         if (durationLimit != null) {
             timeoutJob = viewModelScope.launch {
@@ -280,7 +298,7 @@ class PersonsViewModel @Inject constructor(
         }
 
         deferred.await()
-        timeoutJob?.cancel() // Cleanup timeout job if sound finished early
+        timeoutJob?.cancel() 
     }
 
     private suspend fun checkMilestone(name: String, oldTotal: Int, newTotal: Int): Boolean {
@@ -338,10 +356,7 @@ class PersonsViewModel @Inject constructor(
 
     fun onEvent(event: PersonEvent) {
         when (event) {
-            is PersonEvent.OrderPersons -> {
-                // Not implemented
-            }
-
+            is PersonEvent.OrderPersons -> {}
             is PersonEvent.DeletePerson -> {
                 viewModelScope.launch {
                     personUseCases.deletePerson(event.person)
@@ -349,44 +364,37 @@ class PersonsViewModel @Inject constructor(
                     getPersons()
                 }
             }
-
             is PersonEvent.DeleteAllPerson -> {
                 viewModelScope.launch {
                     personUseCases.deleteAllPerson()
                 }
             }
-
             is PersonEvent.RestorePerson -> {
                 viewModelScope.launch {
                     personUseCases.insertPerson(deletedPerson ?: return@launch)
                     deletedPerson = null
                 }
             }
-
             is PersonEvent.UpdatePerson -> {
                 viewModelScope.launch {
                     personUseCases.updatePerson(person = event.person)
                 }
             }
-
             is PersonEvent.CreatePerson -> {
                 viewModelScope.launch {
                     personUseCases.insertPerson(event.person)
                 }
             }
-
             is PersonEvent.CreateUserTag -> {
                 viewModelScope.launch {
                     personUseCases.insertUserTag(UserTag(name = event.name))
                 }
             }
-
             is PersonEvent.DeleteUserTag -> {
                 viewModelScope.launch {
                     personUseCases.deleteUserTag(event.userTag)
                 }
             }
-
             is PersonEvent.ToggleTagSelection -> {
                 val currentSelected = state.value.selectedTagIds
                 val newSelected = if (currentSelected.contains(event.tagId)) {
@@ -396,7 +404,6 @@ class PersonsViewModel @Inject constructor(
                 }
                 _state.value = state.value.copy(selectedTagIds = newSelected)
             }
-
             is PersonEvent.AddSelectedTagsToGame -> {
                 val selectedTags = state.value.userTags.filter { it.id in state.value.selectedTagIds }
                 selectedTags.forEach { tag ->
@@ -569,7 +576,6 @@ class PersonsViewModel @Inject constructor(
         _showDialogEditStage.value = false
         updateStageJob?.cancel()
         updateStageJob = viewModelScope.launch {
-            // 1. Calculate all necessary updates first
             val updates = state.value.persons.mapIndexedNotNull { index, person ->
                 if (index < listWinLoseState.value.size) {
                     val listStages = person.stages.toMutableList()
@@ -588,7 +594,6 @@ class PersonsViewModel @Inject constructor(
 
             _state.value = state.value.copy(isProcessing = true)
             try {
-                // 2. Step-by-step update with synchronized sound and UI refresh
                 updates.forEach { (updatedPerson, oldTotal, newTotal) ->
                     _state.value = state.value.copy(highlightedPersonId = updatedPerson.id)
                     
@@ -598,29 +603,41 @@ class PersonsViewModel @Inject constructor(
                         else -> "notchange"
                     }
 
-                    // SYNC: Start direction sound and UI animation simultaneously
-                    // Wait for direction sound to finish before moving on
-                    coroutineScope {
-                        val soundJob = launch { playSound(directionSound) }
-                        personUseCases.updatePerson(updatedPerson)
-                        soundJob.join()
+                    // --- EDIT HERE TO CHANGE DIRECTION SOUND LIMITS ---
+                    val directionDuration = when (directionSound) {
+                        "uprank" -> 1000L
+                        "downrank" -> 1200L
+                        "notchange" -> 1700L
+                        else -> null
                     }
 
-                    // Check milestone (speaks if milestone reached and waits for TTS)
+                    val startPosition = when (directionSound) {
+                        "uprank" -> 250
+                        "downrank" -> 50
+                        "notchange" -> 0
+                        else -> null
+                    }
+
+                    // 1. Phát tiếng bíp biến động + Cập nhật số (Đợi tiếng bíp xong)
+                    coroutineScope {
+                        val soundJob = launch { playSound(directionSound, directionDuration, startPosition) }
+                        personUseCases.updatePerson(updatedPerson)
+                        soundJob.join() 
+                    }
+
+                    // 2. Kiểm tra cột mốc và nói (Đợi nói xong)
                     val milestoneReached = checkMilestone(updatedPerson.name, oldTotal, newTotal)
                     
-                    // Only play achievement sound if it was a milestone
+                    // 3. Chỉ phát nhạc thành tựu hào hùng nếu thực sự đạt CỘT MỐC và sau khi NÓI xong
                     if (milestoneReached) {
                         playAchievementSound(newTotal)
                     }
                     
-                    delay(300)
+                    delay(300) 
                 }
             } catch (e: Exception) {
                 Log.e("UpdateStage", "Error updating stage: ${e.message}")
             } finally {
-                // 3. ON STOP (CANCEL) OR FINISH:
-                // Ensure all data is saved immediately
                 withContext(NonCancellable) {
                     updates.forEach { (updatedPerson, _, _) ->
                         personUseCases.updatePerson(updatedPerson)
