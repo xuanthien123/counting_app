@@ -2,6 +2,7 @@ package com.aquarina.countingapp.presentation.features.caculating_china_poker
 
 import android.app.Application
 import android.media.MediaPlayer
+import android.net.Uri
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -240,51 +241,67 @@ class PersonsViewModel @Inject constructor(
         }
 
         val config = getSoundConfig(rawName)
-        playSound(rawName, config?.duration, config?.startTime)
+        playSound(rawName, config?.duration, config?.startTime, config?.customUri)
     }
 
-    private suspend fun playSound(rawName: String, durationLimit: Long? = null, startTime: Int? = null) {
-        val soundResId = app.resources.getIdentifier(rawName, "raw", app.packageName)
-        if (soundResId == 0) return
-
+    private suspend fun playSound(rawName: String, durationLimit: Long? = null, startTime: Int? = null, customUri: String? = null) {
         val deferred = CompletableDeferred<Unit>()
         mediaPlayer?.stop()
         mediaPlayer?.release()
         
-        mediaPlayer = MediaPlayer.create(app, soundResId)
-        val player = mediaPlayer ?: return
+        try {
+            val player = if (customUri != null) {
+                MediaPlayer().apply {
+                    setDataSource(app, Uri.parse(customUri))
+                    prepare()
+                }
+            } else {
+                val soundResId = app.resources.getIdentifier(rawName, "raw", app.packageName)
+                if (soundResId == 0) return
+                MediaPlayer.create(app, soundResId)
+            }
+            mediaPlayer = player
 
-        player.setOnCompletionListener {
-            it.release()
-            if (mediaPlayer == it) mediaPlayer = null
-            deferred.complete(Unit)
-        }
-        
-        player.setOnErrorListener { mp, _, _ ->
-            mp.release()
-            if (mediaPlayer == mp) mediaPlayer = null
-            deferred.complete(Unit)
-            true
-        }
+            if (player == null) {
+                deferred.complete(Unit)
+                return
+            }
 
-        startTime?.let { if (it > 0) player.seekTo(it) }
-        player.start()
+            player.setOnCompletionListener {
+                it.release()
+                if (mediaPlayer == it) mediaPlayer = null
+                deferred.complete(Unit)
+            }
+            
+            player.setOnErrorListener { mp, _, _ ->
+                mp.release()
+                if (mediaPlayer == mp) mediaPlayer = null
+                deferred.complete(Unit)
+                true
+            }
 
-        var timeoutJob: Job? = null
-        if (durationLimit != null) {
-            timeoutJob = viewModelScope.launch {
-                delay(durationLimit)
-                if (!deferred.isCompleted) {
-                    try { if (player.isPlaying) player.stop() } catch (e: Exception) {}
-                    player.release()
-                    if (mediaPlayer == player) mediaPlayer = null
-                    deferred.complete(Unit)
+            startTime?.let { if (it > 0) player.seekTo(it) }
+            player.start()
+
+            var timeoutJob: Job? = null
+            if (durationLimit != null) {
+                timeoutJob = viewModelScope.launch {
+                    delay(durationLimit)
+                    if (!deferred.isCompleted) {
+                        try { if (player.isPlaying) player.stop() } catch (e: Exception) {}
+                        player.release()
+                        if (mediaPlayer == player) mediaPlayer = null
+                        deferred.complete(Unit)
+                    }
                 }
             }
-        }
 
-        deferred.await()
-        timeoutJob?.cancel() 
+            deferred.await()
+            timeoutJob?.cancel() 
+        } catch (e: Exception) {
+            Log.e("Sound", "Error playing sound: ${e.message}")
+            deferred.complete(Unit)
+        }
     }
 
     private suspend fun checkMilestone(name: String, oldTotal: Int, newTotal: Int): Boolean {
@@ -343,6 +360,27 @@ class PersonsViewModel @Inject constructor(
             is PersonEvent.AddSelectedTagsToGame -> {
                 val selectedTags = state.value.userTags.filter { it.id in state.value.selectedTagIds }
                 selectedTags.forEach { addPerson(it.name) }
+                _state.value = state.value.copy(selectedTagIds = emptySet())
+                _showDialogSelectUser.value = false
+            }
+            is PersonEvent.ClearTagSelection -> {
+                _state.value = state.value.copy(selectedTagIds = emptySet())
+            }
+            is PersonEvent.UpdateSoundConfig -> {
+                viewModelScope.launch {
+                    val updatedConfigs = gameInfo?.soundConfigs?.map {
+                        if (it.key == event.key) it.copy(customUri = event.uri) else it
+                    } ?: emptyList()
+                    updateGameSettingsFull(soundConfigs = updatedConfigs, milestoneConfigs = gameInfo?.milestoneConfigs ?: emptyList())
+                }
+            }
+            is PersonEvent.ResetSoundConfig -> {
+                viewModelScope.launch {
+                    val updatedConfigs = gameInfo?.soundConfigs?.map {
+                        if (it.key == event.key) it.copy(customUri = null) else it
+                    } ?: emptyList()
+                    updateGameSettingsFull(soundConfigs = updatedConfigs, milestoneConfigs = gameInfo?.milestoneConfigs ?: emptyList())
+                }
             }
         }
     }
@@ -382,6 +420,7 @@ class PersonsViewModel @Inject constructor(
     fun deleteUserTag(userTag: UserTag) = onEvent(PersonEvent.DeleteUserTag(userTag))
     fun toggleTagSelection(tagId: Int) = onEvent(PersonEvent.ToggleTagSelection(tagId))
     fun addSelectedTagsAsPersons() = onEvent(PersonEvent.AddSelectedTagsToGame)
+    fun clearTagSelection() = onEvent(PersonEvent.ClearTagSelection)
 
     fun addPerson(name: String) {
         onEvent(PersonEvent.CreatePerson(Person(name = name, total = 0, stages = List(numberOfStage.value) { 0 })))
@@ -458,7 +497,7 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun playSoundPreview(config: SoundConfig) {
-        viewModelScope.launch { playSound(config.soundName, config.duration, config.startTime) }
+        viewModelScope.launch { playSound(config.soundName, config.duration, config.startTime, config.customUri) }
     }
 
     fun speakPreview(name: String, message: String) {
@@ -525,7 +564,7 @@ class PersonsViewModel @Inject constructor(
                     }
                     val config = getSoundConfig(directionSound)
                     coroutineScope {
-                        val soundJob = launch { playSound(directionSound, config?.duration, config?.startTime) }
+                        val soundJob = launch { playSound(directionSound, config?.duration, config?.startTime, config?.customUri) }
                         personUseCases.updatePerson(updatedPerson)
                         soundJob.join()
                     }

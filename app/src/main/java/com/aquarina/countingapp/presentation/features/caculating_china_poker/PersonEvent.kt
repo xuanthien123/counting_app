@@ -15,4 +15,8 @@ sealed class PersonEvent {
     data class DeleteUserTag(val userTag: UserTag) : PersonEvent()
     data class ToggleTagSelection(val tagId: Int) : PersonEvent()
     object AddSelectedTagsToGame : PersonEvent()
+    object ClearTagSelection : PersonEvent()
+
+    data class UpdateSoundConfig(val key: String, val uri: String) : PersonEvent()
+    data class ResetSoundConfig(val key: String) : PersonEvent()
 }

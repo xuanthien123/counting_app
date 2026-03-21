@@ -7,7 +7,7 @@ import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.model.UserTag
 
-@Database(entities = [Person::class, GameInfo::class, UserTag::class], version = 7)
+@Database(entities = [Person::class, GameInfo::class, UserTag::class], version = 8)
 @TypeConverters(IntListConverter::class, ConfigConverter::class)
 abstract class PersonDatabase : RoomDatabase() {
     abstract val personDao: PersonDao

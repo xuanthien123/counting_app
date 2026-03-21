@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,7 +47,20 @@ fun DialogSelectUser(viewModel: PersonsViewModel = hiltViewModel()) {
                     Text("Hủy")
                 }
             },
-            title = { Text("Chọn người chơi") },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Chọn người chơi")
+                    if (state.selectedTagIds.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.clearTagSelection() }) {
+                            Icon(Icons.Default.Deselect, contentDescription = "Bỏ chọn tất cả", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // Input to create new tag

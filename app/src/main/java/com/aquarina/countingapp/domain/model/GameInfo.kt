@@ -20,7 +20,8 @@ data class SoundConfig(
     val displayName: String,
     val soundName: String,
     val duration: Long?,
-    val startTime: Int = 0
+    val startTime: Int = 0,
+    val customUri: String? = null
 )
 
 data class MilestoneConfig(

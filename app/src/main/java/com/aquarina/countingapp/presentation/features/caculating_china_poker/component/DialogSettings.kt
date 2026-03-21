@@ -1,5 +1,9 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker.component
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -47,6 +52,7 @@ fun DialogSettings(
     onDismiss: () -> Unit
 ) {
     val gameInfo = viewModel.gameInfo ?: return
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     
     var soundConfigs by remember { mutableStateOf(gameInfo.soundConfigs) }
@@ -56,6 +62,26 @@ fun DialogSettings(
     var titleIcon by remember { mutableStateOf(viewModel.titleIcon.value) }
     var betLevel by remember { mutableIntStateOf(viewModel.betLevel.value) }
     var showCurrency by remember { mutableStateOf(viewModel.showCurrency.value) }
+
+    var pendingSoundKey by remember { mutableStateOf<String?>(null) }
+    val soundPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    selectedUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            val updated = soundConfigs.map { 
+                if (it.key == pendingSoundKey) it.copy(customUri = selectedUri.toString()) else it 
+            }
+            soundConfigs = updated
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -97,7 +123,6 @@ fun DialogSettings(
                                 modifier = Modifier.padding(end = 8.dp)
                             ) {
                                 Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
-
                             }
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -148,7 +173,17 @@ fun DialogSettings(
                                 1 -> SoundSettingsList(
                                     configs = soundConfigs,
                                     onConfigChange = { soundConfigs = it },
-                                    onPreview = { viewModel.playSoundPreview(it) }
+                                    onPreview = { viewModel.playSoundPreview(it) },
+                                    onPickSound = { key ->
+                                        pendingSoundKey = key
+                                        soundPickerLauncher.launch(arrayOf("audio/*"))
+                                    },
+                                    onResetSound = { key ->
+                                        val updated = soundConfigs.map { 
+                                            if (it.key == key) it.copy(customUri = null) else it 
+                                        }
+                                        soundConfigs = updated
+                                    }
                                 )
                                 2 -> MilestoneSettingsList(
                                     configs = milestoneConfigs,
@@ -318,7 +353,9 @@ fun GeneralSettings(
 fun SoundSettingsList(
     configs: List<SoundConfig>,
     onConfigChange: (List<SoundConfig>) -> Unit,
-    onPreview: (SoundConfig) -> Unit
+    onPreview: (SoundConfig) -> Unit,
+    onPickSound: (String) -> Unit,
+    onResetSound: (String) -> Unit
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -347,13 +384,36 @@ fun SoundSettingsList(
                             }
                         }
                         Spacer(Modifier.width(12.dp))
-                        Text(config.displayName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.weight(1f))
-                        FilledTonalIconButton(
-                            onClick = { onPreview(config) },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(Icons.Default.PlayArrow, null)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(config.displayName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            if (config.customUri != null) {
+                                Text("Sử dụng âm thanh tùy chỉnh", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            } else {
+                                Text("Mặc định", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        
+                        Row {
+                            if (config.customUri == null) {
+                                IconButton(onClick = { onPickSound(config.key) }) {
+                                    Icon(
+                                        Icons.Default.FileUpload,
+                                        "Chọn âm thanh",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            if (config.customUri != null) {
+                                IconButton(onClick = { onResetSound(config.key) }) {
+                                    Icon(Icons.Default.Restore, "Xóa tùy chỉnh", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            FilledTonalIconButton(
+                                onClick = { onPreview(config) },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, null)
+                            }
                         }
                     }
                     
@@ -523,7 +583,7 @@ fun AchievementSettingsList(
                                 }
                                 onConfigChange(updated)
                             },
-                            label = { Text("Lời đọc (Ví dụ: là huyền thoại sống)") },
+                            label = { Text("Lời đọc (Ví dụ: là con gà)") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
