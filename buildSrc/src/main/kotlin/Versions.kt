@@ -12,4 +12,5 @@ object Versions {
     const val coroutines = "1.7.3"
     const val coil = "2.6.0"
     const val accompanist = "0.33.2-alpha"
+    const val gson = "2.13.2"
 }

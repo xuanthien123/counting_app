@@ -1,13 +1,14 @@
 package com.aquarina.countingapp.data.local
 
 import androidx.room.*
+import com.aquarina.countingapp.domain.converter.ConfigConverter
 import com.aquarina.countingapp.domain.converter.IntListConverter
 import com.aquarina.countingapp.domain.model.GameInfo
 import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.model.UserTag
 
-@Database(entities = [Person::class, GameInfo::class, UserTag::class], version = 4)
-@TypeConverters(IntListConverter::class)
+@Database(entities = [Person::class, GameInfo::class, UserTag::class], version = 7)
+@TypeConverters(IntListConverter::class, ConfigConverter::class)
 abstract class PersonDatabase : RoomDatabase() {
     abstract val personDao: PersonDao
     abstract val gameInfoDao: GameInfoDao

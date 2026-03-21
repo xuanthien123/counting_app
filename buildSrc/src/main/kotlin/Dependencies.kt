@@ -34,6 +34,10 @@ object Dependencies {
         const val okHttpLoggingInterceptor = "com.squareup.okhttp3:logging-interceptor:${Versions.okHttp}"
     }
 
+    object Gson {
+        const val gson = "com.google.code.gson:gson:${Versions.gson}"
+    }
+
     object Coroutines {
         const val core = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.coroutines}"
         const val android = "org.jetbrains.kotlinx:kotlinx-coroutines-android:${Versions.coroutines}"
@@ -89,6 +93,10 @@ fun DependencyHandler.retrofit() {
     implementation(Dependencies.Network.moshiConverter)
     implementation(Dependencies.Network.okHttp)
     implementation(Dependencies.Network.okHttpLoggingInterceptor)
+}
+
+fun DependencyHandler.gson() {
+    implementation(Dependencies.Gson.gson)
 }
 
 fun DependencyHandler.coroutines() {

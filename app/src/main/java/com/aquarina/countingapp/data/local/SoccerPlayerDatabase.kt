@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 import com.aquarina.countingapp.domain.converter.IntListConverter
 import com.aquarina.countingapp.domain.model.SoccerPlayer
 
-@Database(entities = [SoccerPlayer::class], version = 2)
+@Database(entities = [SoccerPlayer::class], version = 3)
 @TypeConverters(IntListConverter::class)
 abstract class SoccerPlayerDatabase : RoomDatabase() {
     abstract val soccerPlayerDao: SoccerPlayerDao

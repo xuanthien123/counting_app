@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +51,8 @@ fun SharedTransitionScope.CalculatingScreen(
     val state = viewModel.state.value
     val betLevel = viewModel.betLevel.value
     val showCurrency = viewModel.showCurrency.value
+    val title = viewModel.title.value
+    val titleIconName = viewModel.titleIcon.value
     val focusManager = LocalFocusManager.current
     val isProcessing = state.isProcessing
     
@@ -64,6 +67,10 @@ fun SharedTransitionScope.CalculatingScreen(
         label = "rotation"
     )
 
+    val titleIcon = remember(titleIconName) {
+        getIconByName(titleIconName)
+    }
+
     Scaffold(
         modifier = Modifier.sharedElement(
             sharedTransitionScope.rememberSharedContentState(key = "screen-${Screen.Calculating.route}"),
@@ -72,27 +79,42 @@ fun SharedTransitionScope.CalculatingScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Tính Tiền Đánh Bài",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = titleIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
-                        if (showCurrency) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
                             Text(
-                                text = "Mức cược: ${betLevel.formatToReadable()}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
+                            if (showCurrency) {
+                                Text(
+                                    text = "Mức cược: ${betLevel.formatToReadable()}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
                         }
                     }
                 },
                 actions = {
+//                    IconButton(
+//                        enabled = !isProcessing,
+//                        onClick = { viewModel.showDialogSettings(true) }
+//                    ) {
+//                        Icon(Icons.Default.Tune, contentDescription = "Cài đặt âm thanh", tint = MaterialTheme.colorScheme.primary)
+//                    }
                     IconButton(
                         enabled = !isProcessing,
-                        onClick = { viewModel.showDialogBoxBetLevel(true) }
+                        onClick = { viewModel.showDialogSettings(true) }
                     ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Sửa cược")
+                        Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
                     }
                     IconButton(
                         enabled = !isProcessing,
@@ -184,12 +206,12 @@ fun SharedTransitionScope.CalculatingScreen(
                                                 targetState = person.total,
                                                 transitionSpec = {
                                                     if (targetState > initialState) {
-                                                        // Tăng điểm: Trượt LÊN (Đảo chiều logic theo phản hồi)
+                                                        // Tăng điểm: Trượt LÊN
                                                         (slideInVertically { height -> -height } + fadeIn() togetherWith
                                                                 slideOutVertically { height -> height } + fadeOut())
                                                             .using(SizeTransform(clip = false))
                                                     } else if (targetState < initialState) {
-                                                        // Giảm điểm: Trượt XUỐNG (Đảo chiều logic theo phản hồi)
+                                                        // Giảm điểm: Trượt XUỐNG
                                                         (slideInVertically { height -> height } + fadeIn() togetherWith
                                                                 slideOutVertically { height -> -height } + fadeOut())
                                                             .using(SizeTransform(clip = false))
@@ -315,7 +337,38 @@ fun SharedTransitionScope.CalculatingScreen(
                 StageDialogWidget()
                 DialogConfirm()
                 DialogSelectUser()
+                
+                if (viewModel.showDialogSettings.value) {
+                    DialogSettings(
+                        viewModel = viewModel,
+                        onDismiss = { viewModel.showDialogSettings(false) }
+                    )
+                }
             }
         }
     }
 }
+
+fun getIconByName(name: String): ImageVector {
+    return when (name) {
+        "Calculate" -> Icons.Default.Calculate
+        "SportsSoccer" -> Icons.Default.SportsSoccer
+        "Casino" -> Icons.Default.Casino
+        "Games" -> Icons.Default.Games
+        "EmojiEvents" -> Icons.Default.EmojiEvents
+        "Groups" -> Icons.Default.Groups
+        "Payments" -> Icons.Default.Payments
+        "ShoppingBag" -> Icons.Default.ShoppingBag
+        "SportsEsports" -> Icons.Default.SportsEsports
+        "HistoryEdu" -> Icons.Default.HistoryEdu
+        "LocalActivity" -> Icons.Default.LocalActivity
+        "MonetizationOn" -> Icons.Default.MonetizationOn
+        "Star" -> Icons.Default.Star
+        "Favorite" -> Icons.Default.Favorite
+        else -> Icons.Default.Calculate
+    }
+}
+
+val availableIcons = listOf(
+    "Calculate", "SportsSoccer", "Casino", "Games", "EmojiEvents", "Groups", "Payments", "ShoppingBag", "SportsEsports", "HistoryEdu", "LocalActivity", "MonetizationOn", "Star", "Favorite"
+)

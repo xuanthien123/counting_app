@@ -62,6 +62,7 @@ dependencies {
     hilt()
     room()
     retrofit()
+    gson()
     coroutines()
     coil()
     accompanist()

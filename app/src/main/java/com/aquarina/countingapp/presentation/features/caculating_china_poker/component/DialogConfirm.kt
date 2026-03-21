@@ -19,9 +19,9 @@ import com.aquarina.countingapp.presentation.features.caculating_china_poker.Per
 @Composable
 fun DialogConfirm(viewModel: PersonsViewModel = hiltViewModel()) {
     val showDialog: Boolean = viewModel.showConfirmDialog.value
-    val title = viewModel.title
-    val content = viewModel.content
-    val function = viewModel.function
+    val title = viewModel.titleConfirm
+    val content = viewModel.contentConfirm
+    val function = viewModel.functionConfirm
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.closeConfirmDialog() },

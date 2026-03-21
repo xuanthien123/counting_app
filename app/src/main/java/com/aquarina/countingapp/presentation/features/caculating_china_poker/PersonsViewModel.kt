@@ -12,22 +12,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aquarina.countingapp.domain.model.AchievementConfig
 import com.aquarina.countingapp.domain.model.GameInfo
+import com.aquarina.countingapp.domain.model.MilestoneConfig
 import com.aquarina.countingapp.domain.model.Person
+import com.aquarina.countingapp.domain.model.SoundConfig
 import com.aquarina.countingapp.domain.model.UserTag
 import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
 import com.aquarina.countingapp.presentation.components.formatToReadable
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import javax.inject.Inject
 
@@ -49,8 +45,16 @@ class PersonsViewModel @Inject constructor(
     private val _showDialogSelectUser = mutableStateOf(false)
     val showDialogSelectUser: State<Boolean> = _showDialogSelectUser
 
-    private var deletedPerson: Person? = null
+    private val _showDialogSettings = mutableStateOf(false)
+    val showDialogSettings: State<Boolean> = _showDialogSettings
 
+    private val _showDialogEditStage = mutableStateOf(false)
+    val showDialogEditStage: State<Boolean> = _showDialogEditStage
+
+    private val _showConfirmDialog = mutableStateOf(false)
+    val showConfirmDialog: State<Boolean> = _showConfirmDialog
+
+    private var deletedPerson: Person? = null
     private var getPersonJob: Job? = null
     private var getUserTagsJob: Job? = null
 
@@ -59,6 +63,12 @@ class PersonsViewModel @Inject constructor(
     
     private val _showCurrency = mutableStateOf(false)
     val showCurrency: State<Boolean> = _showCurrency
+
+    private val _title = mutableStateOf("Tính Tiền")
+    val title: State<String> = _title
+
+    private val _titleIcon = mutableStateOf("Calculate")
+    val titleIcon: State<String> = _titleIcon
 
     private val _numberOfStage = mutableIntStateOf(0)
     val numberOfStage: State<Int> = _numberOfStage
@@ -72,6 +82,17 @@ class PersonsViewModel @Inject constructor(
     private var playAllJob: Job? = null
     private var updateStageJob: Job? = null
     private var ttsDeferred: CompletableDeferred<String>? = null
+
+    val initName = mutableStateOf("")
+    private val _editingId = mutableStateOf<Int?>(null)
+    val editingId: State<Int?> = _editingId
+
+    var stage: Int = 0
+    val listWinLoseState = mutableStateOf<List<String>>(emptyList())
+
+    var titleConfirm: String = "Xác nhận"
+    var contentConfirm: String = ""
+    var functionConfirm: () -> Unit = {}
 
     init {
         viewModelScope.launch {
@@ -101,17 +122,12 @@ class PersonsViewModel @Inject constructor(
         if (status == TextToSpeech.SUCCESS) {
             val result = tts?.setLanguage(Locale("vi", "VN"))
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TTS", "Ngôn ngữ tiếng Việt không hỗ trợ, thử tiếng Anh")
-                val englishResult = tts?.setLanguage(Locale.US)
-                if (englishResult == TextToSpeech.LANG_MISSING_DATA || englishResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    showTtsError("Thiết bị không hỗ trợ giọng nói tiếng Việt/tiếng Anh")
-                }
+                tts?.setLanguage(Locale.US)
             }
             isTtsReady = true
         } else {
-            Log.e("TTS", "Khởi tạo TTS thất bại")
             isTtsReady = false
-            showTtsError("Lỗi khởi tạo giọng nói. Vui lòng kiểm tra cài đặt TTS trên máy.")
+            showTtsError("Lỗi khởi tạo giọng nói.")
         }
     }
 
@@ -135,10 +151,7 @@ class PersonsViewModel @Inject constructor(
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
-        _state.value = state.value.copy(
-            isProcessing = false,
-            highlightedPersonId = null
-        )
+        _state.value = state.value.copy(isProcessing = false, highlightedPersonId = null)
     }
 
     fun playAllPlayersInfo() {
@@ -163,33 +176,34 @@ class PersonsViewModel @Inject constructor(
 
                     if (isTtsReady) {
                         ttsDeferred = CompletableDeferred()
-                        speak(
-                            "${person.name} $achievementText, $scoreText",
-                            TextToSpeech.QUEUE_FLUSH,
-                            utteranceId
-                        )
-                        try {
-                            withTimeoutOrNull(5000) {
-                                ttsDeferred?.await()
-                            }
-                        } catch (e: Exception) {
-                            Log.e("TTS", "Error waiting for TTS: ${e.message}")
-                        }
+                        speak("${person.name} $achievementText, $scoreText", TextToSpeech.QUEUE_FLUSH, utteranceId)
+                        withTimeoutOrNull(5000) { ttsDeferred?.await() }
                     }
 
                     playAchievementSound(person.total)
                     delay(300) 
                 }
             } finally {
-                _state.value = state.value.copy(
-                    isProcessing = false,
-                    highlightedPersonId = null
-                )
+                _state.value = state.value.copy(isProcessing = false, highlightedPersonId = null)
             }
         }
     }
 
     private fun getAchievementText(total: Int): String {
+        val configs = state.value.gameInfo?.achievementConfigs
+        if (!configs.isNullOrEmpty()) {
+            val matchingConfig = configs
+                .filter { cfg ->
+                    val matchMin = cfg.minScore?.let { total >= it } ?: true
+                    val matchMax = cfg.maxScore?.let { total <= it } ?: true
+                    matchMin && matchMax
+                }
+                .sortedByDescending { it.minScore ?: Int.MIN_VALUE }
+                .firstOrNull()
+            
+            if (matchingConfig != null) return matchingConfig.speakText
+        }
+
         return when {
             total >= 75 -> "là huyền thoại sống"
             total >= 50 -> "là một con cá voi"
@@ -203,6 +217,11 @@ class PersonsViewModel @Inject constructor(
             total > -75 -> "đang vay ngân hàng để chơi"
             else -> "đang nằm hòm"
         }
+    }
+
+    private fun getSoundConfig(key: String): SoundConfig? {
+        val configs = state.value.gameInfo?.soundConfigs ?: gameInfo?.soundConfigs
+        return configs?.find { it.key == key }
     }
 
     private suspend fun playAchievementSound(total: Int) {
@@ -220,64 +239,35 @@ class PersonsViewModel @Inject constructor(
             else -> "m5"
         }
 
-        val durationLimit = when (rawName) {
-            "m1" -> 2500L 
-            "m2" -> 1500L
-            "m3" -> null
-            "m4" -> null
-            "m5" -> 3000L
-            "s0" -> 3500L
-            "s1" -> 4000L
-            "s2" -> 1500L
-            "s3" -> 3500L
-            "s4" -> null
-            "s5" -> 6000L
-            else -> null 
-        }
-        
-        playSound(rawName, durationLimit)
+        val config = getSoundConfig(rawName)
+        playSound(rawName, config?.duration, config?.startTime)
     }
 
-    private suspend fun playSound(
-        rawName: String, 
-        durationLimit: Long? = null,
-        startTime: Int? = null
-    ) {
+    private suspend fun playSound(rawName: String, durationLimit: Long? = null, startTime: Int? = null) {
         val soundResId = app.resources.getIdentifier(rawName, "raw", app.packageName)
-        if (soundResId == 0) {
-            Log.e("Sound", "Could not find sound resource for $rawName")
-            return
-        }
+        if (soundResId == 0) return
 
         val deferred = CompletableDeferred<Unit>()
-        
         mediaPlayer?.stop()
         mediaPlayer?.release()
         
         mediaPlayer = MediaPlayer.create(app, soundResId)
-        val player = mediaPlayer ?: run {
-            deferred.complete(Unit)
-            return
-        }
+        val player = mediaPlayer ?: return
 
         player.setOnCompletionListener {
             it.release()
             if (mediaPlayer == it) mediaPlayer = null
-            if (!deferred.isCompleted) deferred.complete(Unit)
+            deferred.complete(Unit)
         }
         
         player.setOnErrorListener { mp, _, _ ->
             mp.release()
             if (mediaPlayer == mp) mediaPlayer = null
-            if (!deferred.isCompleted) deferred.complete(Unit)
+            deferred.complete(Unit)
             true
         }
 
-        val startPos = startTime ?: 0
-        if (startPos > 0) {
-            player.seekTo(startPos)
-        }
-        
+        startTime?.let { if (it > 0) player.seekTo(it) }
         player.start()
 
         var timeoutJob: Job? = null
@@ -285,11 +275,7 @@ class PersonsViewModel @Inject constructor(
             timeoutJob = viewModelScope.launch {
                 delay(durationLimit)
                 if (!deferred.isCompleted) {
-                    try {
-                        if (player.isPlaying) player.stop()
-                    } catch (e: Exception) {
-                        Log.e("Sound", "Error stopping player: ${e.message}")
-                    }
+                    try { if (player.isPlaying) player.stop() } catch (e: Exception) {}
                     player.release()
                     if (mediaPlayer == player) mediaPlayer = null
                     deferred.complete(Unit)
@@ -302,56 +288,21 @@ class PersonsViewModel @Inject constructor(
     }
 
     private suspend fun checkMilestone(name: String, oldTotal: Int, newTotal: Int): Boolean {
-        val milestoneMsg = when {
-            oldTotal < 75 && newTotal >= 75 -> "Chúc mừng $name đã đạt tới cảnh giới huyền thoại!"
-            oldTotal > -75 && newTotal <= -75 -> "Vĩnh biệt $name, hòm đã sẵn sàng!"
-            oldTotal < 50 && newTotal >= 50 -> "$name đã trở thành cá voi!"
-            oldTotal > -50 && newTotal <= -50 -> "$name đã phải tìm đến ngân hàng!"
-            oldTotal < 30 && newTotal >= 30 -> "$name đã chính thức lên ngôi vua!"
-            oldTotal > -30 && newTotal <= -30 -> "Ôi không, $name bốc cứt rồi!"
-            else -> null
-        }
-        
-        if (milestoneMsg != null) {
-            if (isTtsReady) {
-                val utteranceId = "milestone_${name}_$newTotal"
-                ttsDeferred = CompletableDeferred()
-                speak(milestoneMsg, TextToSpeech.QUEUE_ADD, utteranceId)
-                try {
-                    withTimeoutOrNull(5000) {
-                        ttsDeferred?.await()
-                    }
-                } catch (e: Exception) {
-                    Log.e("TTS", "Error waiting for milestone TTS: ${e.message}")
-                }
-            }
-            return true
-        }
-        return false
-    }
+        val milestoneConfigs = (state.value.gameInfo?.milestoneConfigs ?: gameInfo?.milestoneConfigs) ?: emptyList()
+        val config = milestoneConfigs.find { cfg ->
+            val matchMin = cfg.minScore?.let { oldTotal < it && newTotal >= it } ?: false
+            val matchMax = cfg.maxScore?.let { oldTotal > it && newTotal <= it } ?: false
+            matchMin || matchMax
+        } ?: return false
 
-    fun getRankLevel(total: Int): Int {
-        return when {
-            total >= 75 -> 10
-            total >= 50 -> 9
-            total >= 30 -> 8
-            total >= 15 -> 7
-            total >= 1 -> 6
-            total == 0 -> 5
-            total > -15 -> 4
-            total > -30 -> 3
-            total > -50 -> 2
-            total > -75 -> 1
-            else -> 0
+        val message = config.message.replace("{name}", name)
+        if (isTtsReady) {
+            val utteranceId = "milestone_${name}_${System.currentTimeMillis()}"
+            ttsDeferred = CompletableDeferred()
+            speak(message, TextToSpeech.QUEUE_ADD, utteranceId)
+            withTimeoutOrNull(5000) { ttsDeferred?.await() }
         }
-    }
-
-    private fun getStage() {
-        if (state.value.persons.isNotEmpty()) {
-            _numberOfStage.intValue = state.value.persons.first().stages.size
-        } else {
-            _numberOfStage.intValue = 0
-        }
+        return true
     }
 
     fun onEvent(event: PersonEvent) {
@@ -361,13 +312,10 @@ class PersonsViewModel @Inject constructor(
                 viewModelScope.launch {
                     personUseCases.deletePerson(event.person)
                     deletedPerson = event.person
-                    getPersons()
                 }
             }
             is PersonEvent.DeleteAllPerson -> {
-                viewModelScope.launch {
-                    personUseCases.deleteAllPerson()
-                }
+                viewModelScope.launch { personUseCases.deleteAllPerson() }
             }
             is PersonEvent.RestorePerson -> {
                 viewModelScope.launch {
@@ -376,41 +324,25 @@ class PersonsViewModel @Inject constructor(
                 }
             }
             is PersonEvent.UpdatePerson -> {
-                viewModelScope.launch {
-                    personUseCases.updatePerson(person = event.person)
-                }
+                viewModelScope.launch { personUseCases.updatePerson(event.person) }
             }
             is PersonEvent.CreatePerson -> {
-                viewModelScope.launch {
-                    personUseCases.insertPerson(event.person)
-                }
+                viewModelScope.launch { personUseCases.insertPerson(event.person) }
             }
             is PersonEvent.CreateUserTag -> {
-                viewModelScope.launch {
-                    personUseCases.insertUserTag(UserTag(name = event.name))
-                }
+                viewModelScope.launch { personUseCases.insertUserTag(UserTag(name = event.name)) }
             }
             is PersonEvent.DeleteUserTag -> {
-                viewModelScope.launch {
-                    personUseCases.deleteUserTag(event.userTag)
-                }
+                viewModelScope.launch { personUseCases.deleteUserTag(event.userTag) }
             }
             is PersonEvent.ToggleTagSelection -> {
                 val currentSelected = state.value.selectedTagIds
-                val newSelected = if (currentSelected.contains(event.tagId)) {
-                    currentSelected - event.tagId
-                } else {
-                    currentSelected + event.tagId
-                }
+                val newSelected = if (currentSelected.contains(event.tagId)) currentSelected - event.tagId else currentSelected + event.tagId
                 _state.value = state.value.copy(selectedTagIds = newSelected)
             }
             is PersonEvent.AddSelectedTagsToGame -> {
                 val selectedTags = state.value.userTags.filter { it.id in state.value.selectedTagIds }
-                selectedTags.forEach { tag ->
-                    addPerson(tag.name)
-                }
-                _state.value = state.value.copy(selectedTagIds = emptySet())
-                showDialogSelectUser(false)
+                selectedTags.forEach { addPerson(it.name) }
             }
         }
     }
@@ -420,77 +352,53 @@ class PersonsViewModel @Inject constructor(
         if (gameInfo != null) {
             _betLevel.intValue = gameInfo!!.betLevel
             _showCurrency.value = gameInfo!!.showCurrency
+            _title.value = gameInfo!!.title
+            _titleIcon.value = gameInfo!!.titleIcon
+            _state.value = state.value.copy(gameInfo = gameInfo)
         } else {
-            personUseCases.insertGameInfo(GameInfo(betLevel = 1, showCurrency = false))
+            val defaultGameInfo = GameInfo(betLevel = 1, showCurrency = false)
+            personUseCases.insertGameInfo(defaultGameInfo)
             gameInfo = personUseCases.getGameInfo()
+            _state.value = state.value.copy(gameInfo = gameInfo)
         }
     }
 
     private fun getPersons() {
         getPersonJob?.cancel()
         getPersonJob = personUseCases.getPersons().onEach { peoples ->
-            _state.value = state.value.copy(
-                persons = peoples
-            )
-            getStage()
+            _state.value = state.value.copy(persons = peoples)
+            _numberOfStage.intValue = peoples.firstOrNull()?.stages?.size ?: 0
         }.launchIn(viewModelScope)
     }
 
     private fun getUserTags() {
         getUserTagsJob?.cancel()
         getUserTagsJob = personUseCases.getUserTags().onEach { tags ->
-            _state.value = state.value.copy(
-                userTags = tags
-            )
+            _state.value = state.value.copy(userTags = tags)
         }.launchIn(viewModelScope)
     }
 
-    fun addUserTag(name: String) {
-        onEvent(PersonEvent.CreateUserTag(name))
-    }
-
-    fun deleteUserTag(userTag: UserTag) {
-        onEvent(PersonEvent.DeleteUserTag(userTag))
-    }
-
-    fun toggleTagSelection(tagId: Int) {
-        onEvent(PersonEvent.ToggleTagSelection(tagId))
-    }
-
-    fun addSelectedTagsAsPersons() {
-        onEvent(PersonEvent.AddSelectedTagsToGame)
-    }
+    fun addUserTag(name: String) = onEvent(PersonEvent.CreateUserTag(name))
+    fun deleteUserTag(userTag: UserTag) = onEvent(PersonEvent.DeleteUserTag(userTag))
+    fun toggleTagSelection(tagId: Int) = onEvent(PersonEvent.ToggleTagSelection(tagId))
+    fun addSelectedTagsAsPersons() = onEvent(PersonEvent.AddSelectedTagsToGame)
 
     fun addPerson(name: String) {
-        onEvent(
-            PersonEvent.CreatePerson(
-                person = Person(
-                    name = name,
-                    total = 0,
-                    stages = List(size = numberOfStage.value) { 0 })
-            )
-        )
+        onEvent(PersonEvent.CreatePerson(Person(name = name, total = 0, stages = List(numberOfStage.value) { 0 })))
     }
 
     fun editPerson(name: String) {
-        val index = editingId.value
-        if (index != null && index >= 0 && index < state.value.persons.size) {
-            val person: PersonEvent =
-                PersonEvent.UpdatePerson(
-                    person = state.value.persons[index].copy(name = name)
-                )
-            onEvent(person)
+        editingId.value?.let { index ->
+            if (index in state.value.persons.indices) {
+                onEvent(PersonEvent.UpdatePerson(state.value.persons[index].copy(name = name)))
+            }
         }
     }
 
     fun deleteAllPerson() {
         onEvent(PersonEvent.DeleteAllPerson)
-        _numberOfStage.value = 0
+        _numberOfStage.intValue = 0
     }
-
-    val initName = mutableStateOf("")
-    private val _editingId: MutableState<Int?> = mutableStateOf(null)
-    val editingId: State<Int?> = _editingId
 
     fun showDialogBox(value: Boolean) {
         if (value) {
@@ -501,9 +409,8 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun showEditName(value: Boolean, index: Int) {
-        if (value && index >= 0 && index < state.value.persons.size) {
+        if (value && index in state.value.persons.indices) {
             initName.value = state.value.persons[index].name
-            Log.d("NameInput", "Tên người chơi: ${initName.value}")
             _editingId.value = index
             _showDialog.value = true
         } else if (!value) {
@@ -511,64 +418,80 @@ class PersonsViewModel @Inject constructor(
         }
     }
 
-    fun showDialogBoxBetLevel(value: Boolean) {
-        _showDialogBetLevel.value = value
-    }
-
-    fun showDialogSelectUser(value: Boolean) {
-        _showDialogSelectUser.value = value
-    }
+    fun showDialogBoxBetLevel(value: Boolean) { _showDialogBetLevel.value = value }
+    fun showDialogSelectUser(value: Boolean) { _showDialogSelectUser.value = value }
+    fun showDialogSettings(value: Boolean) { _showDialogSettings.value = value }
 
     fun updateGameSettings(betLevel: Int, showCurrency: Boolean) {
-        _betLevel.intValue = betLevel
-        _showCurrency.value = showCurrency
+        updateGameSettingsFull(
+            soundConfigs = gameInfo?.soundConfigs ?: emptyList(),
+            milestoneConfigs = gameInfo?.milestoneConfigs ?: emptyList(),
+            achievementConfigs = gameInfo?.achievementConfigs ?: emptyList(),
+            betLevel = betLevel,
+            showCurrency = showCurrency
+        )
+    }
+
+    fun updateGameSettingsFull(
+        soundConfigs: List<SoundConfig>,
+        milestoneConfigs: List<MilestoneConfig>,
+        achievementConfigs: List<AchievementConfig>? = null,
+        title: String? = null,
+        titleIcon: String? = null,
+        betLevel: Int? = null,
+        showCurrency: Boolean? = null
+    ) {
         viewModelScope.launch {
-            personUseCases.updateGameInfo(
-                gameInfo?.copy(betLevel = betLevel, showCurrency = showCurrency) 
-                ?: GameInfo(betLevel = betLevel, showCurrency = showCurrency)
-            )
+            var updated = gameInfo?.copy(soundConfigs = soundConfigs, milestoneConfigs = milestoneConfigs)
+                ?: GameInfo(soundConfigs = soundConfigs, milestoneConfigs = milestoneConfigs)
+
+            achievementConfigs?.let { updated = updated.copy(achievementConfigs = it) }
+            title?.let { updated = updated.copy(title = it); _title.value = it }
+            titleIcon?.let { updated = updated.copy(titleIcon = it); _titleIcon.value = it }
+            betLevel?.let { updated = updated.copy(betLevel = it); _betLevel.intValue = it }
+            showCurrency?.let { updated = updated.copy(showCurrency = it); _showCurrency.value = it }
+
+            personUseCases.updateGameInfo(updated)
+            gameInfo = updated
+            _state.value = state.value.copy(gameInfo = updated)
+        }
+    }
+
+    fun playSoundPreview(config: SoundConfig) {
+        viewModelScope.launch { playSound(config.soundName, config.duration, config.startTime) }
+    }
+
+    fun speakPreview(name: String, message: String) {
+        if (isTtsReady) {
+            speak(message.replace("{name}", name), TextToSpeech.QUEUE_ADD, "preview")
         }
     }
 
     fun addNewStage() {
-        for (person in state.value.persons) {
-            onEvent(PersonEvent.UpdatePerson(person = person.copy(stages = (person.stages + 0))))
+        viewModelScope.launch {
+            state.value.persons.forEach { person ->
+                personUseCases.updatePerson(person.copy(stages = person.stages + 0))
+            }
         }
     }
 
     fun refreshData() {
-        for (person in state.value.persons) {
-            onEvent(PersonEvent.UpdatePerson(person = person.copy(stages = emptyList(), total = 0)))
+        viewModelScope.launch {
+            state.value.persons.forEach { person ->
+                personUseCases.updatePerson(person.copy(stages = emptyList(), total = 0))
+            }
         }
     }
 
-    private val _showDialogEditStage = mutableStateOf(false)
-    val showDialogEditStage: State<Boolean> = _showDialogEditStage
-    var stage: Int = 0
-    val listWinLoseState = mutableStateOf<List<String>>(emptyList())
-
-    fun showDialogEditStage(value: Boolean) {
-        _showDialogEditStage.value = value
-    }
+    fun showDialogEditStage(value: Boolean) { _showDialogEditStage.value = value }
 
     fun showEditStage(stage: Int) {
         this.stage = stage
-        val currentList = mutableListOf<String>()
-        var isInit = true
-        for (person in state.value.persons) {
-            if (person.stages.size > stage) {
-                val valStr = person.stages[stage].toString()
-                currentList.add(valStr)
-                if (person.stages[stage] != 0) isInit = false
-            } else {
-                currentList.add("0")
-            }
+        val currentList = state.value.persons.map { person ->
+            person.stages.getOrNull(stage)?.toString() ?: "0"
         }
-        if (isInit) {
-            listWinLoseState.value = List(state.value.persons.size) { "" }
-        } else {
-            listWinLoseState.value = currentList.toList()
-        }
+        val isAllZero = currentList.all { it == "0" || it == "" }
+        listWinLoseState.value = if (isAllZero) List(state.value.persons.size) { "" } else currentList
         _showDialogEditStage.value = true
     }
 
@@ -584,8 +507,7 @@ class PersonsViewModel @Inject constructor(
                         val newValue = listWinLoseState.value[index].toIntOrNull() ?: 0
                         listStages[stage] = newValue
                         val newTotal = listStages.sum()
-                        val updatedPerson = person.copy(stages = listStages, total = newTotal)
-                        Triple(updatedPerson, oldTotal, newTotal)
+                        Triple(person.copy(stages = listStages, total = newTotal), oldTotal, newTotal)
                     } else null
                 } else null
             }
@@ -596,122 +518,88 @@ class PersonsViewModel @Inject constructor(
             try {
                 updates.forEach { (updatedPerson, oldTotal, newTotal) ->
                     _state.value = state.value.copy(highlightedPersonId = updatedPerson.id)
-                    
                     val directionSound = when {
                         newTotal > oldTotal -> "uprank"
                         newTotal < oldTotal -> "downrank"
                         else -> "notchange"
                     }
-
-                    // --- EDIT HERE TO CHANGE DIRECTION SOUND LIMITS ---
-                    val directionDuration = when (directionSound) {
-                        "uprank" -> 1000L
-                        "downrank" -> 1200L
-                        "notchange" -> 1700L
-                        else -> null
-                    }
-
-                    val startPosition = when (directionSound) {
-                        "uprank" -> 250
-                        "downrank" -> 50
-                        "notchange" -> 0
-                        else -> null
-                    }
-
-                    // 1. Phát tiếng bíp biến động + Cập nhật số (Đợi tiếng bíp xong)
+                    val config = getSoundConfig(directionSound)
                     coroutineScope {
-                        val soundJob = launch { playSound(directionSound, directionDuration, startPosition) }
+                        val soundJob = launch { playSound(directionSound, config?.duration, config?.startTime) }
                         personUseCases.updatePerson(updatedPerson)
-                        soundJob.join() 
+                        soundJob.join()
                     }
-
-                    // 2. Kiểm tra cột mốc và nói (Đợi nói xong)
-                    val milestoneReached = checkMilestone(updatedPerson.name, oldTotal, newTotal)
-                    
-                    // 3. Chỉ phát nhạc thành tựu hào hùng nếu thực sự đạt CỘT MỐC và sau khi NÓI xong
-                    if (milestoneReached) {
+                    if (checkMilestone(updatedPerson.name, oldTotal, newTotal)) {
                         playAchievementSound(newTotal)
                     }
-                    
-                    delay(300) 
+                    delay(300)
                 }
             } catch (e: Exception) {
                 Log.e("UpdateStage", "Error updating stage: ${e.message}")
             } finally {
-                withContext(NonCancellable) {
-                    updates.forEach { (updatedPerson, _, _) ->
-                        personUseCases.updatePerson(updatedPerson)
-                    }
-                    _state.value = state.value.copy(
-                        isProcessing = false,
-                        highlightedPersonId = null
-                    )
-                }
+                _state.value = state.value.copy(isProcessing = false, highlightedPersonId = null)
             }
         }
     }
 
     fun deleteStage() {
-        for (person in state.value.persons) {
-            if (stage < person.stages.size) {
-                val listStages: MutableList<Int> = person.stages.toMutableList()
-                listStages.removeAt(stage)
-                onEvent(
-                    PersonEvent.UpdatePerson(
-                        person = person.copy(
-                            stages = listStages,
-                            total = listStages.sum()
-                        )
-                    )
-                )
+        viewModelScope.launch {
+            state.value.persons.forEach { person ->
+                if (stage < person.stages.size) {
+                    val listStages = person.stages.toMutableList()
+                    listStages.removeAt(stage)
+                    personUseCases.updatePerson(person.copy(stages = listStages, total = listStages.sum()))
+                }
             }
         }
     }
 
     fun deleteUser(user: Person) {
-        for (person in state.value.persons) {
-            val total: Int = person.stages.sum()
-            onEvent(
-                PersonEvent.UpdatePerson(
-                    person = person.copy(
-                        stages = listOf(total),
-                        total = total
-                    )
-                )
-            )
+        viewModelScope.launch {
+            state.value.persons.forEach { person ->
+                val total = person.stages.sum()
+                personUseCases.updatePerson(person.copy(stages = listOf(total), total = total))
+            }
+            personUseCases.deletePerson(user)
+            _showDialog.value = false
         }
-        onEvent(PersonEvent.DeletePerson(user))
-        _showDialog.value = false
     }
 
-    private val _showConfirmDialog = mutableStateOf(false)
-    val showConfirmDialog: State<Boolean> = _showConfirmDialog
-    var title: String = "Xác nhận"
-    var content: String = ""
-    var function: () -> Unit = {}
-    fun closeConfirmDialog() {
-        _showConfirmDialog.value = false
-    }
+    fun closeConfirmDialog() { _showConfirmDialog.value = false }
 
     fun showConfirmDialog(title: String, content: String, function: () -> Unit) {
-        this.title = title
-        this.content = content
-        this.function = function
+        this.titleConfirm = title
+        this.contentConfirm = content
+        this.functionConfirm = function
         _showConfirmDialog.value = true
     }
 
-    fun getAchievement(value: Int): String {
+    fun getAchievement(total: Int): String {
+        val configs = state.value.gameInfo?.achievementConfigs
+        if (!configs.isNullOrEmpty()) {
+            val matchingConfig = configs
+                .filter { cfg ->
+                    val matchMin = cfg.minScore?.let { total >= it } ?: true
+                    val matchMax = cfg.maxScore?.let { total <= it } ?: true
+                    matchMin && matchMax
+                }
+                .sortedByDescending { it.minScore ?: Int.MIN_VALUE }
+                .firstOrNull()
+
+            if (matchingConfig != null) return matchingConfig.icon
+        }
+
         return when {
-            value >= 75 -> "🐐"
-            value in 50 until 75 -> "🐳"
-            value in 30 until 50 -> "👑"
-            value in 15 until 30 -> "💎"
-            value in 1 until 15 -> "💰"
-            value == 0 -> "😐"
-            value in -14 until 0 -> "🐔"
-            value in -29 until -14 -> "🤮"
-            value in -49 until -29 -> "💩"
-            value in -74 until -49 -> "🏦"
+            total >= 75 -> "🐐"
+            total in 50 until 75 -> "🐳"
+            total in 30 until 50 -> "👑"
+            total in 15 until 30 -> "💎"
+            total in 1 until 15 -> "💰"
+            total == 0 -> "😐"
+            total in -14 until 0 -> "🐔"
+            total in -29 until -14 -> "🤮"
+            total in -49 until -29 -> "💩"
+            total in -74 until -49 -> "🏦"
             else -> "⚰️"
         }
     }
@@ -720,10 +608,8 @@ class PersonsViewModel @Inject constructor(
         super.onCleared()
         playAllJob?.cancel()
         updateStageJob?.cancel()
-        if (isTtsReady) {
-            tts?.stop()
-            tts?.shutdown()
-        }
+        tts?.stop()
+        tts?.shutdown()
         mediaPlayer?.release()
     }
 }
