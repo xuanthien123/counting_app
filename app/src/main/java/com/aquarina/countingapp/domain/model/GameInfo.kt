@@ -21,7 +21,8 @@ data class SoundConfig(
     val soundName: String,
     val duration: Long?,
     val startTime: Int = 0,
-    val customUri: String? = null
+    val customUri: String? = null,
+    val totalDuration: Long? = null
 )
 
 data class MilestoneConfig(
@@ -43,20 +44,20 @@ data class AchievementConfig(
 )
 
 val defaultSoundConfigs = listOf(
-    SoundConfig("uprank", "Tăng hạng", "uprank", 1200L, 250),
-    SoundConfig("downrank", "Giảm hạng", "downrank", 1200L, 50),
-    SoundConfig("notchange", "Không đổi", "notchange", 1700L, 0),
-    SoundConfig("s5", "Trên 75 điểm", "s5", 6000L, 0),
-    SoundConfig("s4", "Từ 50 đến 74 điểm", "s4", null, 0),
-    SoundConfig("s3", "Từ 30 đến 49 điểm", "s3", 3500L, 0),
-    SoundConfig("s2", "Từ 15 đến 29 điểm", "s2", 1500L, 0),
-    SoundConfig("s1", "Từ 1 đến 14 điểm", "s1", 4000L, 0),
-    SoundConfig("s0", "Hòa vốn", "s0", 3500L, 0),
-    SoundConfig("m1", "Từ -14 đến -1 điểm", "m1", 2500L, 0),
-    SoundConfig("m2", "Từ -29 đến -15 điểm", "m2", 1500L, 0),
-    SoundConfig("m3", "Từ -49 đến -30 điểm", "m3", null, 0),
-    SoundConfig("m4", "Từ -74 đến -50 điểm", "m4", null, 0),
-    SoundConfig("m5", "Dưới -75 điểm", "m5", 3000L, 0)
+    SoundConfig("uprank", "Tăng hạng", "uprank", 1200L, 250, totalDuration = 2000L),
+    SoundConfig("downrank", "Giảm hạng", "downrank", 1200L, 50, totalDuration = 2000L),
+    SoundConfig("notchange", "Không đổi", "notchange", 1700L, 0, totalDuration = 3000L),
+    SoundConfig("s5", "Trên 75 điểm", "s5", 6000L, 0, totalDuration = 10000L),
+    SoundConfig("s4", "Từ 50 đến 74 điểm", "s4", null, 0, totalDuration = 10000L),
+    SoundConfig("s3", "Từ 30 đến 49 điểm", "s3", 3500L, 0, totalDuration = 10000L),
+    SoundConfig("s2", "Từ 15 đến 29 điểm", "s2", 1500L, 0, totalDuration = 10000L),
+    SoundConfig("s1", "Từ 1 đến 14 điểm", "s1", 4000L, 0, totalDuration = 10000L),
+    SoundConfig("s0", "Hòa vốn", "s0", 3500L, 0, totalDuration = 10000L),
+    SoundConfig("m1", "Từ -14 đến -1 điểm", "m1", 2500L, 0, totalDuration = 10000L),
+    SoundConfig("m2", "Từ -29 đến -15 điểm", "m2", 1500L, 0, totalDuration = 10000L),
+    SoundConfig("m3", "Từ -49 đến -30 điểm", "m3", null, 0, totalDuration = 10000L),
+    SoundConfig("m4", "Từ -74 đến -50 điểm", "m4", null, 0, totalDuration = 10000L),
+    SoundConfig("m5", "Dưới -75 điểm", "m5", 3000L, 0, totalDuration = 10000L)
 )
 
 val defaultMilestoneConfigs = listOf(

@@ -1,6 +1,7 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker.component
 
 import android.content.Intent
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +43,7 @@ import com.aquarina.countingapp.presentation.features.caculating_china_poker.Per
 import com.aquarina.countingapp.domain.model.SoundConfig
 import com.aquarina.countingapp.domain.model.MilestoneConfig
 import com.aquarina.countingapp.domain.model.AchievementConfig
+import com.aquarina.countingapp.domain.model.defaultSoundConfigs
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.availableIcons
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.getIconByName
 
@@ -73,13 +75,26 @@ fun DialogSettings(
                     selectedUri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
+                
+                // Lấy thời lượng thực tế của file âm thanh
+                val mediaPlayer = MediaPlayer.create(context, selectedUri)
+                val totalDuration = mediaPlayer?.duration?.toLong() ?: 0L
+                mediaPlayer?.release()
+
+                val updated = soundConfigs.map { 
+                    if (it.key == pendingSoundKey) {
+                        it.copy(
+                            customUri = selectedUri.toString(),
+                            duration = totalDuration,
+                            startTime = 0,
+                            totalDuration = totalDuration
+                        )
+                    } else it
+                }
+                soundConfigs = updated
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            val updated = soundConfigs.map { 
-                if (it.key == pendingSoundKey) it.copy(customUri = selectedUri.toString()) else it 
-            }
-            soundConfigs = updated
         }
     }
 
@@ -179,8 +194,16 @@ fun DialogSettings(
                                         soundPickerLauncher.launch(arrayOf("audio/*"))
                                     },
                                     onResetSound = { key ->
+                                        val defaultConfig = defaultSoundConfigs.find { it.key == key }
                                         val updated = soundConfigs.map { 
-                                            if (it.key == key) it.copy(customUri = null) else it 
+                                            if (it.key == key) {
+                                                it.copy(
+                                                    customUri = null,
+                                                    duration = defaultConfig?.duration,
+                                                    startTime = defaultConfig?.startTime ?: 0,
+                                                    totalDuration = defaultConfig?.totalDuration
+                                                )
+                                            } else it 
                                         }
                                         soundConfigs = updated
                                     }
@@ -229,7 +252,7 @@ fun TabItem(index: Int, label: String, icon: ImageVector, selectedIndex: Int, on
 
 @Composable
 fun SettingSection(title: String, icon: ImageVector, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
             Icon(icon, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(8.dp))
@@ -278,7 +301,6 @@ fun GeneralSettings(
                 leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
             Text("Chọn biểu tượng hiển thị", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
 
             LazyVerticalGrid(
@@ -358,10 +380,11 @@ fun SoundSettingsList(
     onResetSound: (String) -> Unit
 ) {
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         items(configs) { config ->
+            val isCustom = config.customUri != null
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
@@ -386,7 +409,7 @@ fun SoundSettingsList(
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(config.displayName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                            if (config.customUri != null) {
+                            if (isCustom) {
                                 Text("Sử dụng âm thanh tùy chỉnh", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             } else {
                                 Text("Mặc định", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -394,7 +417,7 @@ fun SoundSettingsList(
                         }
                         
                         Row {
-                            if (config.customUri == null) {
+                            if (!isCustom) {
                                 IconButton(onClick = { onPickSound(config.key) }) {
                                     Icon(
                                         Icons.Default.FileUpload,
@@ -403,53 +426,73 @@ fun SoundSettingsList(
                                     )
                                 }
                             }
-                            if (config.customUri != null) {
+                            if (isCustom) {
                                 IconButton(onClick = { onResetSound(config.key) }) {
                                     Icon(Icons.Default.Restore, "Xóa tùy chỉnh", tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                             FilledTonalIconButton(
                                 onClick = { onPreview(config) },
-                                modifier = Modifier.size(40.dp)
+//                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(Icons.Default.PlayArrow, null)
                             }
                         }
                     }
                     
-                    Spacer(Modifier.height(16.dp))
+                    if (isCustom) {
+                        Spacer(Modifier.height(16.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = (config.duration ?: "").toString(),
-                            onValueChange = { newVal ->
-                                val updated = configs.map { 
-                                    if (it.key == config.key) it.copy(duration = newVal.toLongOrNull()) else it 
+                        val totalDuration = config.totalDuration?.toFloat() ?: 10000f
+                        val start = config.startTime.toFloat()
+                        val duration = config.duration ?: (totalDuration.toLong() - config.startTime)
+                        val end = (config.startTime + duration).toFloat().coerceAtMost(totalDuration)
+                        
+                        var sliderPosition by remember(config.startTime, config.duration, totalDuration) { 
+                            mutableStateOf(start..end) 
+                        }
+
+                        Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text("Bắt đầu", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${String.format("%.1f", sliderPosition.start / 1000f)}s", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                                 }
-                                onConfigChange(updated)
-                            },
-                            label = { Text("Thời lượng") },
-                            modifier = Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            suffix = { Text("ms", style = MaterialTheme.typography.labelSmall) }
-                        )
-                        OutlinedTextField(
-                            value = config.startTime.toString(),
-                            onValueChange = { newVal ->
-                                val updated = configs.map { 
-                                    if (it.key == config.key) it.copy(startTime = newVal.toIntOrNull() ?: 0) else it 
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Thời lượng", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${String.format("%.1f", (sliderPosition.endInclusive - sliderPosition.start) / 1000f)}s", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                 }
-                                onConfigChange(updated)
-                            },
-                            label = { Text("Bắt đầu") },
-                            modifier = Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            suffix = { Text("ms", style = MaterialTheme.typography.labelSmall) }
-                        )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Kết thúc", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${String.format("%.1f", sliderPosition.endInclusive / 1000f)}s", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            
+                            RangeSlider(
+                                value = sliderPosition,
+                                onValueChange = { sliderPosition = it },
+                                valueRange = 0f..totalDuration,
+                                onValueChangeFinished = {
+                                    val updated = configs.map { 
+                                        if (it.key == config.key) {
+                                            it.copy(
+                                                startTime = sliderPosition.start.toInt(),
+                                                duration = (sliderPosition.endInclusive - sliderPosition.start).toLong()
+                                            )
+                                        } else it 
+                                    }
+                                    onConfigChange(updated)
+                                },
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -464,7 +507,7 @@ fun MilestoneSettingsList(
     onPreview: (String, String) -> Unit
 ) {
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         items(configs) { config ->
@@ -524,7 +567,7 @@ fun AchievementSettingsList(
     onPreview: (String, String) -> Unit
 ) {
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         items(configs) { config ->
