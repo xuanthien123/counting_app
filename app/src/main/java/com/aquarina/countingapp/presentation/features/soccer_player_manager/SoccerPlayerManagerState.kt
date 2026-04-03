@@ -2,12 +2,15 @@ package com.aquarina.countingapp.presentation.features.soccer_player_manager
 
 import androidx.compose.animation.core.MutableTransitionState
 import com.aquarina.countingapp.domain.model.SoccerPlayer
+import com.aquarina.countingapp.domain.model.SoccerPlayerList
 import com.aquarina.countingapp.domain.util.OrderType
 import com.aquarina.countingapp.domain.util.SoccerPlayerOrder
 
 data class SoccerPlayerManagerState(
     val soccerPlayers: List<SoccerPlayer> = emptyList(),
-    val soccerPlayerOrder: SoccerPlayerOrder = SoccerPlayerOrder.Date(OrderType.Descending)
+    val soccerPlayerOrder: SoccerPlayerOrder = SoccerPlayerOrder.Date(OrderType.Descending),
+    val soccerPlayerLists: List<SoccerPlayerList> = emptyList(),
+    val selectedListId: Int = 1
 ) {
     val isOrderSectionVisible: MutableTransitionState<Boolean> = MutableTransitionState(false)
     fun setOrderSectionVisible(visible: Boolean) {

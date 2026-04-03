@@ -1,25 +1,21 @@
 package com.aquarina.countingapp.presentation.features.soccer_player_manager.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.*
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.aquarina.countingapp.domain.model.SoccerPlayer
-import com.aquarina.countingapp.presentation.components.formatToReadable
 import com.aquarina.countingapp.presentation.features.soccer_player_manager.SoccerPlayerManagerEvent
 import com.aquarina.countingapp.presentation.features.soccer_player_manager.SoccerPlayerManagerViewModel
 
@@ -44,7 +40,6 @@ fun RowScope.TableCell(
         ) {
             text()
         }
-
     }
 }
 
@@ -56,9 +51,9 @@ fun TableSoccerPlayer(viewModel: SoccerPlayerManagerViewModel = hiltViewModel())
     val nameColumnWeight = .40f
     val priceColumnWeight = .15f
     val noteColumnWeight = .3f
+    
     Box(
-        Modifier
-            .fillMaxWidth()
+        Modifier.fillMaxWidth()
     ) {
         Column {
             Row(
@@ -97,57 +92,52 @@ fun TableSoccerPlayer(viewModel: SoccerPlayerManagerViewModel = hiltViewModel())
                 )
             }
             LazyColumn(
-                Modifier
-                    .fillMaxSize()
+                Modifier.fillMaxSize()
             ) {
-                // Here are all the lines of your table.
-                items(listPlayer.size) {
+                items(listPlayer.size) { index ->
+                    val soccerPlayer = listPlayer[index]
+                    val rowColor = getColorFromPrice(soccerPlayer.price).copy(alpha = .2f)
+                    
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .height(IntrinsicSize.Min)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(
-                                    // hiệu ứng gợn sóng
-                                    bounded = true,          // true = ripple theo shape, false = ripple tròn
-                                )
+                                indication = ripple(bounded = true)
                             ) {
                                 viewModel.onEvent(
-                                    SoccerPlayerManagerEvent.OpenEditPlayerDialog(
-                                        listPlayer[it]
-                                    )
+                                    SoccerPlayerManagerEvent.OpenEditPlayerDialog(soccerPlayer)
                                 )
                             }
                     ) {
-                        val soccerPlayer = listPlayer[it]
                         TableCell(
-                            text = { Text("${it + 1}") },
+                            text = { Text("${index + 1}") },
                             weight = numberColumnWeight,
                             alignment = Alignment.CenterStart,
                             padding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp),
-                            color = getColorFromPrice(soccerPlayer.price).copy(alpha = .2f)
+                            color = rowColor
                         )
                         TableCell(
                             text = { Text(soccerPlayer.name) },
                             weight = nameColumnWeight,
                             alignment = Alignment.CenterStart,
-                            color = getColorFromPrice(soccerPlayer.price).copy(alpha = .2f)
+                            color = rowColor
                         )
                         TableCell(
-                            text = { Text("${soccerPlayer.price.toString()}tr") },
+                            text = { Text("${soccerPlayer.price}tr") },
                             weight = priceColumnWeight,
-                            color = getColorFromPrice(soccerPlayer.price).copy(alpha = .2f)
+                            color = rowColor
                         )
                         TableCell(
                             text = { Text(soccerPlayer.note) },
                             weight = noteColumnWeight,
                             padding = PaddingValues(end = 16.dp, top = 8.dp, bottom = 8.dp),
-                            color = getColorFromPrice(soccerPlayer.price).copy(alpha = .2f)
+                            color = rowColor
                         )
                     }
                 }
-                item { Spacer(modifier = Modifier.height(50.dp)) }
+                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }
@@ -159,6 +149,8 @@ fun getColorFromPrice(price: Int): Color {
         in 50..99 -> Color.Green
         in 100..149 -> Color.Blue
         in 150..199 -> Color(0xFF9C27B0)
-        else -> Color.Yellow
+        in 200..249 -> Color.Yellow
+        in 250..300 -> Color(0x323357B0)
+        else -> Color.Red
     }
 }

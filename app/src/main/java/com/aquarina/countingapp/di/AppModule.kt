@@ -2,8 +2,11 @@ package com.aquarina.countingapp.di
 
 import android.app.Application
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.aquarina.countingapp.data.local.PersonDatabase
 import com.aquarina.countingapp.data.local.SoccerPlayerDatabase
+import com.aquarina.countingapp.data.local.SoccerPreferences
 import com.aquarina.countingapp.data.repository.PersonRepositoryImpl
 import com.aquarina.countingapp.data.repository.SoccerPlayerRepositoryImpl
 import com.aquarina.countingapp.domain.repository.PersonRepository
@@ -30,6 +33,23 @@ object AppModule {
         ).fallbackToDestructiveMigration().build()
     }
 
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create the new table for SoccerPlayerList
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `SoccerPlayerList` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)"
+            )
+            // Add listId column to SoccerPlayer table
+            db.execSQL(
+                "ALTER TABLE `SoccerPlayer` ADD COLUMN `listId` INTEGER NOT NULL DEFAULT 1"
+            )
+            // Insert a default list so existing players belong to it
+            db.execSQL(
+                "INSERT OR IGNORE INTO `SoccerPlayerList` (id, name, timestamp) VALUES (1, 'Danh sách mặc định', ${System.currentTimeMillis()})"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideSoccerPlayerDatabase(app: Application): SoccerPlayerDatabase {
@@ -38,7 +58,9 @@ object AppModule {
             app,
             SoccerPlayerDatabase::class.java,
             SoccerPlayerDatabase.DATABASE_NAME
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(MIGRATION_3_4)
+            .build()
     }
 
     @Provides
@@ -51,6 +73,12 @@ object AppModule {
     @Singleton
     fun provideSoccerPlayerRepository(db: SoccerPlayerDatabase): SoccerRepository {
         return SoccerPlayerRepositoryImpl(db.soccerPlayerDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSoccerPreferences(app: Application): SoccerPreferences {
+        return SoccerPreferences(app)
     }
 
     @Provides
@@ -79,7 +107,10 @@ object AppModule {
             getSSoccerPlayerById = GetSoccerPlayerById(repository),
             insertSoccerPlayer = InsertSoccerPlayer(repository),
             deleteSoccerPlayer = DeleteSoccerPlayer(repository),
-            updateSoccerPlayer = UpdateSoccerPlayer(repository)
+            updateSoccerPlayer = UpdateSoccerPlayer(repository),
+            getSoccerPlayerLists = GetSoccerPlayerLists(repository),
+            insertSoccerPlayerList = InsertSoccerPlayerList(repository),
+            deleteSoccerPlayerList = DeleteSoccerPlayerList(repository)
         )
     }
 }

@@ -10,8 +10,11 @@ import kotlinx.coroutines.flow.map
 class GetSoccerPlayer(
     private val repository: SoccerRepository
 ) {
-    operator fun invoke(soccerPlayerOrder: SoccerPlayerOrder = SoccerPlayerOrder.Price(OrderType.Descending)): Flow<List<SoccerPlayer>> {
-        return repository.getSoccerers().map { value ->
+    operator fun invoke(
+        listId: Int,
+        soccerPlayerOrder: SoccerPlayerOrder = SoccerPlayerOrder.Price(OrderType.Descending)
+    ): Flow<List<SoccerPlayer>> {
+        return repository.getSoccerers(listId).map { value ->
             when(soccerPlayerOrder.orderType) {
                 is OrderType.Ascending -> {
                     when(soccerPlayerOrder) {

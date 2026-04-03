@@ -5,5 +5,8 @@ data class SoccerUseCases (
     val getSSoccerPlayerById: GetSoccerPlayerById,
     val insertSoccerPlayer: InsertSoccerPlayer,
     val deleteSoccerPlayer: DeleteSoccerPlayer,
-    val updateSoccerPlayer: UpdateSoccerPlayer
+    val updateSoccerPlayer: UpdateSoccerPlayer,
+    val getSoccerPlayerLists: GetSoccerPlayerLists,
+    val insertSoccerPlayerList: InsertSoccerPlayerList,
+    val deleteSoccerPlayerList: DeleteSoccerPlayerList
 )

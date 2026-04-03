@@ -5,15 +5,14 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aquarina.countingapp.data.local.SoccerPreferences
 import com.aquarina.countingapp.domain.model.SoccerPlayer
-import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
+import com.aquarina.countingapp.domain.model.SoccerPlayerList
 import com.aquarina.countingapp.domain.usecase.soccer_usecase.SoccerUseCases
 import com.aquarina.countingapp.domain.util.OrderType
 import com.aquarina.countingapp.domain.util.SoccerPlayerOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -21,12 +20,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SoccerPlayerManagerViewModel @Inject constructor(
-    private val soccerUseCases: SoccerUseCases
+    private val soccerUseCases: SoccerUseCases,
+    private val preferences: SoccerPreferences
 ) : ViewModel() {
     private val _state = mutableStateOf(SoccerPlayerManagerState())
     val state: State<SoccerPlayerManagerState> = _state
     private var deletedSoccerPlayer: SoccerPlayer? = null
     private var getSoccerPlayersJob: Job? = null
+    private var getSoccerPlayerListsJob: Job? = null
 
     private val _showDialogAddOrEdit = mutableStateOf(false)
     val showDialogAddOrEdit: State<Boolean> = _showDialogAddOrEdit
@@ -40,7 +41,40 @@ class SoccerPlayerManagerViewModel @Inject constructor(
     val selectingPlayer: State<SoccerPlayer?> = _selectingPlayer
 
     init {
-        getSoccerPlayers(soccerPlayerOrder = SoccerPlayerOrder.Price(orderType = OrderType.Descending))
+        val savedOrder = preferences.getOrder()
+        val savedListId = preferences.getSelectedListId()
+        _state.value = _state.value.copy(
+            soccerPlayerOrder = savedOrder,
+            selectedListId = savedListId
+        )
+        getSoccerPlayerLists()
+    }
+
+    private fun getSoccerPlayerLists() {
+        getSoccerPlayerListsJob?.cancel()
+        getSoccerPlayerListsJob = soccerUseCases.getSoccerPlayerLists().onEach { lists ->
+            if (lists.isEmpty()) {
+                // If no lists exist (first time or update), create a default one
+                val defaultListId = soccerUseCases.insertSoccerPlayerList(SoccerPlayerList(id = 1, name = "Danh sách mặc định"))
+                _state.value = state.value.copy(
+                    soccerPlayerLists = listOf(SoccerPlayerList(id = defaultListId.toInt(), name = "Danh sách mặc định")),
+                    selectedListId = defaultListId.toInt()
+                )
+                preferences.saveSelectedListId(defaultListId.toInt())
+            } else {
+                val savedListId = state.value.selectedListId
+                val finalId = if (lists.any { it.id == savedListId }) savedListId else lists.first().id
+                
+                _state.value = state.value.copy(
+                    soccerPlayerLists = lists,
+                    selectedListId = finalId
+                )
+                if (finalId != savedListId) {
+                    preferences.saveSelectedListId(finalId)
+                }
+            }
+            getSoccerPlayers(state.value.selectedListId, state.value.soccerPlayerOrder)
+        }.launchIn(viewModelScope)
     }
 
     fun onEvent(event: SoccerPlayerManagerEvent) {
@@ -57,7 +91,8 @@ class SoccerPlayerManagerViewModel @Inject constructor(
                 ) {
                     return
                 }
-                getSoccerPlayers(event.soccerPlayerOrder)
+                preferences.saveOrder(event.soccerPlayerOrder)
+                getSoccerPlayers(state.value.selectedListId, event.soccerPlayerOrder)
             }
             is SoccerPlayerManagerEvent.DeleteSoccerPlayer -> {
                 viewModelScope.launch {
@@ -66,14 +101,11 @@ class SoccerPlayerManagerViewModel @Inject constructor(
                 }
             }
             is SoccerPlayerManagerEvent.ToggleOrderSection -> {
-//                _state.value = state.value.copy(
-//                    isOrderSectionVisible = !state.value.isOrderSectionVisible
-//                )
                 _state.value.setOrderSectionVisible(!state.value.isOrderSectionVisible.targetState)
             }
             is SoccerPlayerManagerEvent.AddSoccerPlayer -> {
                 viewModelScope.launch {
-                    soccerUseCases.insertSoccerPlayer(event.soccerPlayer)
+                    soccerUseCases.insertSoccerPlayer(event.soccerPlayer.copy(listId = state.value.selectedListId))
                 }
             }
             is SoccerPlayerManagerEvent.EditSoccerPlayer -> {
@@ -101,12 +133,40 @@ class SoccerPlayerManagerViewModel @Inject constructor(
             is SoccerPlayerManagerEvent.CloseDialogConfirm -> {
                 _showDialogConfirm.value = false
             }
+            is SoccerPlayerManagerEvent.SelectList -> {
+                preferences.saveSelectedListId(event.listId)
+                _state.value = state.value.copy(selectedListId = event.listId)
+                getSoccerPlayers(event.listId, state.value.soccerPlayerOrder)
+            }
+            is SoccerPlayerManagerEvent.AddSoccerPlayerList -> {
+                viewModelScope.launch {
+                    val id = soccerUseCases.insertSoccerPlayerList(SoccerPlayerList(name = event.name))
+                    onEvent(SoccerPlayerManagerEvent.SelectList(id.toInt()))
+                }
+            }
+            is SoccerPlayerManagerEvent.UpdateSoccerPlayerList -> {
+                viewModelScope.launch {
+                    soccerUseCases.insertSoccerPlayerList(event.soccerPlayerList)
+                }
+            }
+            is SoccerPlayerManagerEvent.DeleteSoccerPlayerList -> {
+                viewModelScope.launch {
+                    soccerUseCases.deleteSoccerPlayerList(event.soccerPlayerList)
+                    if (state.value.selectedListId == event.soccerPlayerList.id) {
+                        // Switch to another list if the current one is deleted
+                        val remainingLists = state.value.soccerPlayerLists.filter { it.id != event.soccerPlayerList.id }
+                        if (remainingLists.isNotEmpty()) {
+                            onEvent(SoccerPlayerManagerEvent.SelectList(remainingLists.first().id))
+                        }
+                    }
+                }
+            }
         }
     }
 
-    fun getSoccerPlayers(soccerPlayerOrder: SoccerPlayerOrder) {
+    private fun getSoccerPlayers(listId: Int, soccerPlayerOrder: SoccerPlayerOrder) {
         getSoccerPlayersJob?.cancel()
-        getSoccerPlayersJob = soccerUseCases.getSoccerPlayer(soccerPlayerOrder).onEach { value ->
+        getSoccerPlayersJob = soccerUseCases.getSoccerPlayer(listId, soccerPlayerOrder).onEach { value ->
             _state.value = state.value.copy(
                 soccerPlayers = value,
                 soccerPlayerOrder = soccerPlayerOrder
