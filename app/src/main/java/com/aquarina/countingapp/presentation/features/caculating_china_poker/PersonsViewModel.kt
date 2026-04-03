@@ -7,7 +7,6 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aquarina.countingapp.domain.model.AchievementConfig
 import com.aquarina.countingapp.domain.model.GameInfo
+import com.aquarina.countingapp.domain.model.GameSaved
 import com.aquarina.countingapp.domain.model.MilestoneConfig
 import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.model.SoundConfig
@@ -58,6 +58,7 @@ class PersonsViewModel @Inject constructor(
     private var deletedPerson: Person? = null
     private var getPersonJob: Job? = null
     private var getUserTagsJob: Job? = null
+    private var getSavedGamesJob: Job? = null
 
     private val _betLevel = mutableIntStateOf(1)
     val betLevel: State<Int> = _betLevel
@@ -97,9 +98,9 @@ class PersonsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            getGameInfo()
-            getPersons()
+            getGameInfoAndInitialize()
             getUserTags()
+            getSavedGames()
         }
         try {
             tts = TextToSpeech(app, this)
@@ -117,6 +118,41 @@ class PersonsViewModel @Inject constructor(
             Log.e("TTS", "Could not initialize TTS: ${e.message}")
             showTtsError("Thiết bị không thể khởi tạo dịch vụ giọng nói (TTS)")
         }
+    }
+
+    private suspend fun getGameInfoAndInitialize() {
+        gameInfo = personUseCases.getGameInfo()
+        if (gameInfo == null) {
+            val defaultGameInfo = GameInfo(betLevel = 1, showCurrency = false)
+            personUseCases.insertGameInfo(defaultGameInfo)
+            gameInfo = personUseCases.getGameInfo()
+        }
+
+        gameInfo?.let { info ->
+            _betLevel.intValue = info.betLevel
+            _showCurrency.value = info.showCurrency
+            _title.value = info.title
+            _titleIcon.value = info.titleIcon
+            _state.value = state.value.copy(gameInfo = info, selectedGameId = info.selectedGameId)
+
+            if (info.selectedGameId == null) {
+                // Initialize first game if none selected
+                val newGameId = personUseCases.insertGameSaved(GameSaved(name = null)).toInt()
+                val updatedInfo = info.copy(selectedGameId = newGameId)
+                personUseCases.updateGameInfo(updatedInfo)
+                gameInfo = updatedInfo
+                _state.value = state.value.copy(gameInfo = updatedInfo, selectedGameId = newGameId)
+            }
+            
+            state.value.selectedGameId?.let { getPersons(it) }
+        }
+    }
+
+    private fun getSavedGames() {
+        getSavedGamesJob?.cancel()
+        getSavedGamesJob = personUseCases.getSavedGames().onEach { games ->
+            _state.value = state.value.copy(savedGames = games)
+        }.launchIn(viewModelScope)
     }
 
     override fun onInit(status: Int) {
@@ -332,7 +368,11 @@ class PersonsViewModel @Inject constructor(
                 }
             }
             is PersonEvent.DeleteAllPerson -> {
-                viewModelScope.launch { personUseCases.deleteAllPerson() }
+                viewModelScope.launch { 
+                    state.value.selectedGameId?.let { gameId ->
+                        personUseCases.deleteAllPerson(gameId)
+                    }
+                }
             }
             is PersonEvent.RestorePerson -> {
                 viewModelScope.launch {
@@ -344,7 +384,11 @@ class PersonsViewModel @Inject constructor(
                 viewModelScope.launch { personUseCases.updatePerson(event.person) }
             }
             is PersonEvent.CreatePerson -> {
-                viewModelScope.launch { personUseCases.insertPerson(event.person) }
+                viewModelScope.launch { 
+                    state.value.selectedGameId?.let { gameId ->
+                        personUseCases.insertPerson(event.person.copy(gameSavedId = gameId))
+                    }
+                }
             }
             is PersonEvent.CreateUserTag -> {
                 viewModelScope.launch { personUseCases.insertUserTag(UserTag(name = event.name)) }
@@ -382,28 +426,41 @@ class PersonsViewModel @Inject constructor(
                     updateGameSettingsFull(soundConfigs = updatedConfigs, milestoneConfigs = gameInfo?.milestoneConfigs ?: emptyList())
                 }
             }
+            is PersonEvent.CreateGameSaved -> {
+                viewModelScope.launch {
+                    val newId = personUseCases.insertGameSaved(GameSaved(name = event.name)).toInt()
+                    onEvent(PersonEvent.SelectGame(newId))
+                }
+            }
+            is PersonEvent.DeleteGameSaved -> {
+                viewModelScope.launch {
+                    if (event.game.id != state.value.selectedGameId) {
+                        personUseCases.deleteGameSaved(event.game)
+                    }
+                }
+            }
+            is PersonEvent.UpdateGameSaved -> {
+                viewModelScope.launch {
+                    personUseCases.updateGameSaved(event.game)
+                }
+            }
+            is PersonEvent.SelectGame -> {
+                viewModelScope.launch {
+                    val updatedInfo = gameInfo?.copy(selectedGameId = event.gameId)
+                    updatedInfo?.let { 
+                        personUseCases.updateGameInfo(it)
+                        gameInfo = it
+                        _state.value = state.value.copy(gameInfo = it, selectedGameId = event.gameId)
+                        getPersons(event.gameId)
+                    }
+                }
+            }
         }
     }
 
-    private suspend fun getGameInfo() {
-        gameInfo = personUseCases.getGameInfo()
-        if (gameInfo != null) {
-            _betLevel.intValue = gameInfo!!.betLevel
-            _showCurrency.value = gameInfo!!.showCurrency
-            _title.value = gameInfo!!.title
-            _titleIcon.value = gameInfo!!.titleIcon
-            _state.value = state.value.copy(gameInfo = gameInfo)
-        } else {
-            val defaultGameInfo = GameInfo(betLevel = 1, showCurrency = false)
-            personUseCases.insertGameInfo(defaultGameInfo)
-            gameInfo = personUseCases.getGameInfo()
-            _state.value = state.value.copy(gameInfo = gameInfo)
-        }
-    }
-
-    private fun getPersons() {
+    private fun getPersons(gameId: Int) {
         getPersonJob?.cancel()
-        getPersonJob = personUseCases.getPersons().onEach { peoples ->
+        getPersonJob = personUseCases.getPersons(gameId).onEach { peoples ->
             _state.value = state.value.copy(persons = peoples)
             _numberOfStage.intValue = peoples.firstOrNull()?.stages?.size ?: 0
         }.launchIn(viewModelScope)
@@ -423,7 +480,9 @@ class PersonsViewModel @Inject constructor(
     fun clearTagSelection() = onEvent(PersonEvent.ClearTagSelection)
 
     fun addPerson(name: String) {
-        onEvent(PersonEvent.CreatePerson(Person(name = name, total = 0, stages = List(numberOfStage.value) { 0 })))
+        state.value.selectedGameId?.let { gameId ->
+            onEvent(PersonEvent.CreatePerson(Person(name = name, total = 0, stages = List(numberOfStage.value) { 0 }, gameSavedId = gameId)))
+        }
     }
 
     fun editPerson(name: String) {
@@ -647,6 +706,7 @@ class PersonsViewModel @Inject constructor(
         super.onCleared()
         playAllJob?.cancel()
         updateStageJob?.cancel()
+        getSavedGamesJob?.cancel()
         tts?.stop()
         tts?.shutdown()
         mediaPlayer?.release()

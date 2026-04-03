@@ -25,7 +25,6 @@ object AppModule {
     @Provides
     @Singleton
     fun providePersonDatabase(app: Application): PersonDatabase {
-        // Build Person Database
         return Room.databaseBuilder(
             app,
             PersonDatabase::class.java,
@@ -35,15 +34,12 @@ object AppModule {
 
     private val MIGRATION_3_4 = object : Migration(3, 4) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Create the new table for SoccerPlayerList
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS `SoccerPlayerList` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)"
             )
-            // Add listId column to SoccerPlayer table
             db.execSQL(
                 "ALTER TABLE `SoccerPlayer` ADD COLUMN `listId` INTEGER NOT NULL DEFAULT 1"
             )
-            // Insert a default list so existing players belong to it
             db.execSQL(
                 "INSERT OR IGNORE INTO `SoccerPlayerList` (id, name, timestamp) VALUES (1, 'Danh sách mặc định', ${System.currentTimeMillis()})"
             )
@@ -53,7 +49,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSoccerPlayerDatabase(app: Application): SoccerPlayerDatabase {
-        // Build Soccer Database
         return Room.databaseBuilder(
             app,
             SoccerPlayerDatabase::class.java,
@@ -66,7 +61,7 @@ object AppModule {
     @Provides
     @Singleton
     fun providePersonRepository(db: PersonDatabase): PersonRepository {
-        return PersonRepositoryImpl(db.personDao, db.gameInfoDao, db.userTagDao)
+        return PersonRepositoryImpl(db.personDao, db.gameInfoDao, db.userTagDao, db.gameSavedDao)
     }
 
     @Provides
@@ -95,7 +90,11 @@ object AppModule {
             updateGameInfo = UpdateGameInfo(repository),
             getUserTags = GetUserTags(repository),
             insertUserTag = InsertUserTag(repository),
-            deleteUserTag = DeleteUserTag(repository)
+            deleteUserTag = DeleteUserTag(repository),
+            getSavedGames = GetSavedGames(repository),
+            insertGameSaved = InsertGameSaved(repository),
+            deleteGameSaved = DeleteGameSaved(repository),
+            updateGameSaved = UpdateGameSaved(repository)
         )
     }
 

@@ -5,7 +5,7 @@ import com.aquarina.countingapp.domain.repository.PersonRepository
 class DeleteAllPerson(
     private val repository: PersonRepository
 ) {
-    suspend operator fun invoke() : Unit {
-        repository.deleteAllPerson()
+    suspend operator fun invoke(gameId: Int) {
+        repository.deletePersonsByGameId(gameId)
     }
 }

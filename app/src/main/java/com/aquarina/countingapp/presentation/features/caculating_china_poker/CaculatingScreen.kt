@@ -21,9 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -71,6 +69,12 @@ fun SharedTransitionScope.CalculatingScreen(
         getIconByName(titleIconName)
     }
 
+    var showSavedGames by remember { mutableStateOf(false) }
+
+    val currentGameName = remember(state.savedGames, state.selectedGameId) {
+        state.savedGames.find { it.id == state.selectedGameId }?.name
+    }
+
     Scaffold(
         modifier = Modifier.sharedElement(
             sharedTransitionScope.rememberSharedContentState(key = "screen-${Screen.Calculating.route}"),
@@ -78,18 +82,30 @@ fun SharedTransitionScope.CalculatingScreen(
         ),
         topBar = {
             TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                navigationIcon = {
+                    IconButton(
+                        enabled = !isProcessing,
+                        onClick = { showSavedGames = true }
+                    ) {
                         Icon(
-                            imageVector = titleIcon,
+                            imageVector = Icons.Default.History,
                             contentDescription = null,
                             modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                            tint = if (isProcessing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary
+                        )                    }
+                },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+//                        Icon(
+//                            imageVector = titleIcon,
+//                            contentDescription = null,
+//                            modifier = Modifier.size(24.dp),
+//                            tint = MaterialTheme.colorScheme.primary
+//                        )
+//                        Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                text = title,
+                                text = currentGameName ?: title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -104,12 +120,6 @@ fun SharedTransitionScope.CalculatingScreen(
                     }
                 },
                 actions = {
-//                    IconButton(
-//                        enabled = !isProcessing,
-//                        onClick = { viewModel.showDialogSettings(true) }
-//                    ) {
-//                        Icon(Icons.Default.Tune, contentDescription = "Cài đặt âm thanh", tint = MaterialTheme.colorScheme.primary)
-//                    }
                     IconButton(
                         enabled = !isProcessing,
                         onClick = { viewModel.showDialogSettings(true) }
@@ -342,6 +352,13 @@ fun SharedTransitionScope.CalculatingScreen(
                     DialogSettings(
                         viewModel = viewModel,
                         onDismiss = { viewModel.showDialogSettings(false) }
+                    )
+                }
+
+                if (showSavedGames) {
+                    SavedGamesDialog(
+                        onDismiss = { showSavedGames = false },
+                        viewModel = viewModel
                     )
                 }
             }

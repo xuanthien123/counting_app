@@ -12,7 +12,8 @@ data class GameInfo(
     val showCurrency: Boolean = false,
     val soundConfigs: List<SoundConfig> = defaultSoundConfigs,
     val milestoneConfigs: List<MilestoneConfig> = defaultMilestoneConfigs,
-    val achievementConfigs: List<AchievementConfig> = defaultAchievementConfigs
+    val achievementConfigs: List<AchievementConfig> = defaultAchievementConfigs,
+    val selectedGameId: Int? = null
 )
 
 data class SoundConfig(

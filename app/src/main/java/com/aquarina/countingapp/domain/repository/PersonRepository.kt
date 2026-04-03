@@ -1,12 +1,13 @@
 package com.aquarina.countingapp.domain.repository
 
 import com.aquarina.countingapp.domain.model.GameInfo
+import com.aquarina.countingapp.domain.model.GameSaved
 import com.aquarina.countingapp.domain.model.Person
 import com.aquarina.countingapp.domain.model.UserTag
 import kotlinx.coroutines.flow.Flow
 
 interface PersonRepository {
-    fun getPersons() : Flow<List<Person>>
+    fun getPersons(gameId: Int) : Flow<List<Person>>
 
     suspend fun getPersonById(id: Int) : Person?
 
@@ -14,7 +15,7 @@ interface PersonRepository {
 
     suspend fun deletePerson(person: Person)
 
-    suspend fun deleteAllPerson()
+    suspend fun deletePersonsByGameId(gameId: Int)
 
     suspend fun updatePerson(person: Person)
 
@@ -29,4 +30,15 @@ interface PersonRepository {
     suspend fun insertUserTag(userTag: UserTag)
 
     suspend fun deleteUserTag(userTag: UserTag)
+
+    // GameSaved methods
+    fun getGames(): Flow<List<GameSaved>>
+
+    suspend fun insertGame(game: GameSaved): Long
+
+    suspend fun updateGame(game: GameSaved)
+
+    suspend fun deleteGame(game: GameSaved)
+
+    suspend fun getGameById(id: Int): GameSaved?
 }

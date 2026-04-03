@@ -11,5 +11,10 @@ data class PersonUseCases(
     val updateGameInfo: UpdateGameInfo,
     val getUserTags: GetUserTags,
     val insertUserTag: InsertUserTag,
-    val deleteUserTag: DeleteUserTag
+    val deleteUserTag: DeleteUserTag,
+    // GameSaved use cases
+    val getSavedGames: GetSavedGames,
+    val insertGameSaved: InsertGameSaved,
+    val deleteGameSaved: DeleteGameSaved,
+    val updateGameSaved: UpdateGameSaved
 )

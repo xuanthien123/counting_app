@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 class GetPersons(
     private val repository: PersonRepository
 ) {
-    operator fun invoke() : Flow<List<Person>> {
-        return repository.getPersons()
+    operator fun invoke(gameId: Int) : Flow<List<Person>> {
+        return repository.getPersons(gameId)
     }
 }
