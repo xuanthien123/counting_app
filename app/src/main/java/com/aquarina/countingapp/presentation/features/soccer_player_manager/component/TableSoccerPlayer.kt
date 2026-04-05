@@ -51,7 +51,7 @@ fun TableSoccerPlayer(viewModel: SoccerPlayerManagerViewModel = hiltViewModel())
     val nameColumnWeight = .40f
     val priceColumnWeight = .15f
     val noteColumnWeight = .3f
-    
+
     Box(
         Modifier.fillMaxWidth()
     ) {
@@ -97,7 +97,7 @@ fun TableSoccerPlayer(viewModel: SoccerPlayerManagerViewModel = hiltViewModel())
                 items(listPlayer.size) { index ->
                     val soccerPlayer = listPlayer[index]
                     val rowColor = getColorFromPrice(soccerPlayer.price).copy(alpha = .2f)
-                    
+
                     Row(
                         Modifier
                             .fillMaxWidth()

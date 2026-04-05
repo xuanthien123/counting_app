@@ -13,5 +13,8 @@ data class PersonState(
     val highlightedPersonId: Int? = null,
     val gameInfo: GameInfo? = null,
     val savedGames: List<GameSaved> = emptyList(),
-    val selectedGameId: Int? = null
+    val selectedGameId: Int? = null,
+    val isSelectionMode: Boolean = false,
+    val selectedStages: Set<Int> = emptySet(),
+    val stageIds: List<Int> = emptyList()
 )

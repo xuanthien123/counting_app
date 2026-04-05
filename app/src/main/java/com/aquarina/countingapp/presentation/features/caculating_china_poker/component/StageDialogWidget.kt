@@ -9,8 +9,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -21,7 +25,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.PersonsViewModel
 
@@ -133,10 +136,10 @@ fun StageDialogWidget(viewModel: PersonsViewModel = hiltViewModel()): Unit {
                                 trailingIcon = {
                                     val num = value.toIntOrNull() ?: 0
                                     if (num != 0) {
-                                        Text(
-                                            text = if (num > 0) "Thắng" else "Thua",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (num > 0) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                        Icon(
+                                            imageVector = if (num > 0) Icons.Default.AddCircle else Icons.Default.RemoveCircle,
+                                            contentDescription = if (num > 0) "Thắng" else "Thua",
+                                            tint = if (num > 0) Color(0xFF2E7D32) else Color(0xFFC62828),
                                             modifier = Modifier.padding(end = 8.dp)
                                         )
                                     } else if (canAutoFill && index == autoFillIndex && !state.isProcessing) {

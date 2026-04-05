@@ -12,20 +12,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aquarina.countingapp.domain.model.AchievementConfig
-import com.aquarina.countingapp.domain.model.GameInfo
-import com.aquarina.countingapp.domain.model.GameSaved
-import com.aquarina.countingapp.domain.model.MilestoneConfig
-import com.aquarina.countingapp.domain.model.Person
-import com.aquarina.countingapp.domain.model.SoundConfig
-import com.aquarina.countingapp.domain.model.UserTag
+import com.aquarina.countingapp.domain.model.*
 import com.aquarina.countingapp.domain.usecase.person_usecase.PersonUseCases
 import com.aquarina.countingapp.presentation.components.formatToReadable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import java.util.Locale
+import java.util.*
 import javax.inject.Inject
 
 @HiltViewModel
@@ -51,6 +45,12 @@ class PersonsViewModel @Inject constructor(
 
     private val _showDialogEditStage = mutableStateOf(false)
     val showDialogEditStage: State<Boolean> = _showDialogEditStage
+
+    private val _showDialogAddMultiStage = mutableStateOf(false)
+    val showDialogAddMultiStage: State<Boolean> = _showDialogAddMultiStage
+
+    private val _showDialogDeleteMultiStage = mutableStateOf(false)
+    val showDialogDeleteMultiStage: State<Boolean> = _showDialogDeleteMultiStage
 
     private val _showConfirmDialog = mutableStateOf(false)
     val showConfirmDialog: State<Boolean> = _showConfirmDialog
@@ -95,6 +95,8 @@ class PersonsViewModel @Inject constructor(
     var titleConfirm: String = "Xác nhận"
     var contentConfirm: String = ""
     var functionConfirm: () -> Unit = {}
+
+    private var nextStageId = 0
 
     init {
         viewModelScope.launch {
@@ -244,7 +246,7 @@ class PersonsViewModel @Inject constructor(
         return when {
             total >= 75 -> "là huyền thoại sống"
             total >= 50 -> "là một con cá voi"
-            total >= 30 -> "đã lên ngôi vua"
+            total >= 30 -> "là một con khỉ"
             total >= 15 -> "đạt danh hiệu kim cương"
             total >= 1 -> "đã có túi tiền"
             total == 0 -> "đang hòa vốn"
@@ -439,6 +441,15 @@ class PersonsViewModel @Inject constructor(
                     }
                 }
             }
+            is PersonEvent.DeleteMultipleGameSaved -> {
+                viewModelScope.launch {
+                    event.games.forEach { game ->
+                        if (game.id != state.value.selectedGameId) {
+                            personUseCases.deleteGameSaved(game)
+                        }
+                    }
+                }
+            }
             is PersonEvent.UpdateGameSaved -> {
                 viewModelScope.launch {
                     personUseCases.updateGameSaved(event.game)
@@ -450,7 +461,12 @@ class PersonsViewModel @Inject constructor(
                     updatedInfo?.let { 
                         personUseCases.updateGameInfo(it)
                         gameInfo = it
-                        _state.value = state.value.copy(gameInfo = it, selectedGameId = event.gameId)
+                        nextStageId = 0
+                        _state.value = state.value.copy(
+                            gameInfo = it,
+                            selectedGameId = event.gameId,
+                            stageIds = emptyList()
+                        )
                         getPersons(event.gameId)
                     }
                 }
@@ -461,8 +477,24 @@ class PersonsViewModel @Inject constructor(
     private fun getPersons(gameId: Int) {
         getPersonJob?.cancel()
         getPersonJob = personUseCases.getPersons(gameId).onEach { peoples ->
-            _state.value = state.value.copy(persons = peoples)
-            _numberOfStage.intValue = peoples.firstOrNull()?.stages?.size ?: 0
+            val newNumStages = peoples.firstOrNull()?.stages?.size ?: 0
+            val currentStageIds = state.value.stageIds
+
+            val newStageIds = when {
+                newNumStages == currentStageIds.size -> currentStageIds
+                newNumStages > currentStageIds.size -> {
+                    val added = newNumStages - currentStageIds.size
+                    currentStageIds + List(added) { nextStageId++ }
+                }
+                else -> { // newNumStages < currentStageIds.size
+                    currentStageIds.take(newNumStages)
+                }
+            }.let { ids ->
+                if (ids.isEmpty() && newNumStages > 0) List(newNumStages) { nextStageId++ } else ids
+            }
+
+            _state.value = state.value.copy(persons = peoples, stageIds = newStageIds)
+            _numberOfStage.intValue = newNumStages
         }.launchIn(viewModelScope)
     }
 
@@ -496,6 +528,8 @@ class PersonsViewModel @Inject constructor(
     fun deleteAllPerson() {
         onEvent(PersonEvent.DeleteAllPerson)
         _numberOfStage.intValue = 0
+        nextStageId = 0
+        _state.value = state.value.copy(stageIds = emptyList())
     }
 
     fun showDialogBox(value: Boolean) {
@@ -567,10 +601,92 @@ class PersonsViewModel @Inject constructor(
 
     fun addNewStage() {
         viewModelScope.launch {
+            val currentStageIds = state.value.stageIds.toMutableList()
+            currentStageIds.add(nextStageId++)
+            _state.value = state.value.copy(stageIds = currentStageIds)
+
             state.value.persons.forEach { person ->
                 personUseCases.updatePerson(person.copy(stages = person.stages + 0))
             }
         }
+    }
+
+    fun addMultiStage(count: Int) {
+        viewModelScope.launch {
+            val currentStageIds = state.value.stageIds.toMutableList()
+            repeat(count) { currentStageIds.add(nextStageId++) }
+            _state.value = state.value.copy(stageIds = currentStageIds)
+
+            state.value.persons.forEach { person ->
+                val newStages = List(count) { 0 }
+                personUseCases.updatePerson(person.copy(stages = person.stages + newStages))
+            }
+            _showDialogAddMultiStage.value = false
+        }
+    }
+
+    fun deleteMultipleStages(indices: List<Int>) {
+        viewModelScope.launch {
+            val currentStageIds = state.value.stageIds.toMutableList()
+            val sortedIndices = indices.sortedDescending()
+
+            sortedIndices.forEach { index ->
+                if (index < currentStageIds.size) {
+                    currentStageIds.removeAt(index)
+                }
+            }
+            _state.value = state.value.copy(stageIds = currentStageIds)
+
+            state.value.persons.forEach { person ->
+                val mutableStages = person.stages.toMutableList()
+                sortedIndices.forEach { index ->
+                    if (index < mutableStages.size) {
+                        mutableStages.removeAt(index)
+                    }
+                }
+                personUseCases.updatePerson(person.copy(stages = mutableStages, total = mutableStages.sum()))
+            }
+            clearSelection()
+        }
+    }
+
+    fun toggleStageSelection(index: Int) {
+        val currentSelection = state.value.selectedStages
+        val newSelection = if (currentSelection.contains(index)) {
+            currentSelection - index
+        } else {
+            currentSelection + index
+        }
+
+        _state.value = state.value.copy(
+            selectedStages = newSelection,
+            isSelectionMode = newSelection.isNotEmpty()
+        )
+    }
+
+    fun toggleSelectAll() {
+        val totalStages = numberOfStage.value
+        val currentSelection = state.value.selectedStages
+
+        if (currentSelection.size == totalStages) {
+            _state.value = state.value.copy(selectedStages = emptySet(), isSelectionMode = false)
+        } else {
+            _state.value = state.value.copy(selectedStages = (0 until totalStages).toSet(), isSelectionMode = true)
+        }
+    }
+
+    fun enterSelectionMode(index: Int) {
+        _state.value = state.value.copy(
+            isSelectionMode = true,
+            selectedStages = setOf(index)
+        )
+    }
+
+    fun clearSelection() {
+        _state.value = state.value.copy(
+            isSelectionMode = false,
+            selectedStages = emptySet()
+        )
     }
 
     fun refreshData() {
@@ -578,10 +694,14 @@ class PersonsViewModel @Inject constructor(
             state.value.persons.forEach { person ->
                 personUseCases.updatePerson(person.copy(stages = emptyList(), total = 0))
             }
+            nextStageId = 0
+            _state.value = state.value.copy(stageIds = emptyList())
         }
     }
 
     fun showDialogEditStage(value: Boolean) { _showDialogEditStage.value = value }
+    fun showDialogAddMultiStage(value: Boolean) { _showDialogAddMultiStage.value = value }
+    fun showDialogDeleteMultiStage(value: Boolean) { _showDialogDeleteMultiStage.value = value }
 
     fun showEditStage(stage: Int) {
         this.stage = stage
@@ -613,6 +733,7 @@ class PersonsViewModel @Inject constructor(
             if (updates.isEmpty()) return@launch
 
             _state.value = state.value.copy(isProcessing = true)
+            var processedCount = 0
             try {
                 updates.forEach { (updatedPerson, oldTotal, newTotal) ->
                     _state.value = state.value.copy(highlightedPersonId = updatedPerson.id)
@@ -630,8 +751,16 @@ class PersonsViewModel @Inject constructor(
                     if (checkMilestone(updatedPerson.name, oldTotal, newTotal)) {
                         playAchievementSound(newTotal)
                     }
+                    processedCount++
                     delay(300)
                 }
+            } catch (e: CancellationException) {
+                withContext(NonCancellable) {
+                    for (i in processedCount until updates.size) {
+                        personUseCases.updatePerson(updates[i].first)
+                    }
+                }
+                throw e
             } catch (e: Exception) {
                 Log.e("UpdateStage", "Error updating stage: ${e.message}")
             } finally {
@@ -642,6 +771,12 @@ class PersonsViewModel @Inject constructor(
 
     fun deleteStage() {
         viewModelScope.launch {
+            val currentStageIds = state.value.stageIds.toMutableList()
+            if (stage < currentStageIds.size) {
+                currentStageIds.removeAt(stage)
+                _state.value = state.value.copy(stageIds = currentStageIds)
+            }
+
             state.value.persons.forEach { person ->
                 if (stage < person.stages.size) {
                     val listStages = person.stages.toMutableList()
@@ -690,7 +825,7 @@ class PersonsViewModel @Inject constructor(
         return when {
             total >= 75 -> "🐐"
             total in 50 until 75 -> "🐳"
-            total in 30 until 50 -> "👑"
+            total in 30 until 50 -> "🐵"
             total in 15 until 30 -> "💎"
             total in 1 until 15 -> "💰"
             total == 0 -> "😐"

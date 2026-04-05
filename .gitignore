@@ -1,16 +1,35 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-/app/key-app.jks
-.externalNativeBuild
-.cxx
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Kotlin
+.kotlin/
+*.class
+
+# Local config
 local.properties
+
+# Android Studio
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Android build
+*.apk
+*.aab
+captures/
+
+# Native
+.externalNativeBuild/
+.cxx/
+
+# Keystore (giữ bí mật)
+*.jks
+

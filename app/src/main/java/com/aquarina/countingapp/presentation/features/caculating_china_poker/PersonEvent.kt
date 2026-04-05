@@ -24,6 +24,7 @@ sealed class PersonEvent {
     // GameSaved events
     data class CreateGameSaved(val name: String?) : PersonEvent()
     data class DeleteGameSaved(val game: GameSaved) : PersonEvent()
+    data class DeleteMultipleGameSaved(val games: List<GameSaved>) : PersonEvent()
     data class UpdateGameSaved(val game: GameSaved) : PersonEvent()
     data class SelectGame(val gameId: Int) : PersonEvent()
 }
