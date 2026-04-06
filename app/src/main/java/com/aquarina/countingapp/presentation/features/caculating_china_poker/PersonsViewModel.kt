@@ -1,6 +1,7 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker
 
 import android.app.Application
+import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
 import android.speech.tts.TextToSpeech
@@ -105,7 +106,8 @@ class PersonsViewModel @Inject constructor(
             getSavedGames()
         }
         try {
-            tts = TextToSpeech(app, this)
+            // Specify Google TTS engine package
+            tts = TextToSpeech(app, this, "com.google.android.tts")
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
                 override fun onDone(utteranceId: String?) {
@@ -118,7 +120,7 @@ class PersonsViewModel @Inject constructor(
             })
         } catch (e: Exception) {
             Log.e("TTS", "Could not initialize TTS: ${e.message}")
-            showTtsError("Thiết bị không thể khởi tạo dịch vụ giọng nói (TTS)")
+            showInstallTtsDialog()
         }
     }
 
@@ -159,14 +161,49 @@ class PersonsViewModel @Inject constructor(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale("vi", "VN"))
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                tts?.setLanguage(Locale.US)
+            val currentEngine = tts?.defaultEngine
+            if (currentEngine == "com.google.android.tts") {
+                val result = tts?.setLanguage(Locale("vi", "VN"))
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.setLanguage(Locale.US)
+                }
+                isTtsReady = true
+            } else {
+                // Strict check: disable TTS if it's not Google
+                isTtsReady = false
+                showInstallTtsDialog()
             }
-            isTtsReady = true
         } else {
             isTtsReady = false
-            showTtsError("Lỗi khởi tạo giọng nói.")
+            showInstallTtsDialog()
+        }
+    }
+
+    private fun showInstallTtsDialog() {
+        if (!hasShownTtsError) {
+            showConfirmDialog(
+                title = "Cài đặt Google TTS",
+                content = "Ứng dụng cần Google Speech Services để phát âm thanh thông báo. Bạn có muốn cài đặt ngay không?",
+                function = {
+                    openGoogleTtsOnPlayStore()
+                }
+            )
+            hasShownTtsError = true
+        }
+    }
+
+    private fun openGoogleTtsOnPlayStore() {
+        val packageName = "com.google.android.tts"
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            app.startActivity(intent)
+        } catch (e: Exception) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName")).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            app.startActivity(intent)
         }
     }
 
