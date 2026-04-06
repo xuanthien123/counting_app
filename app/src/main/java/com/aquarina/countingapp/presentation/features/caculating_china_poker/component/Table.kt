@@ -98,12 +98,12 @@ private fun SelectionCheckbox(
     val uncheckedColor = if (isHeader) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outline
     val checkmarkColor = if (isHeader) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onPrimary
 
-    val checkboxScale by animateFloatAsState(if (checked) 1.1f else 1f, label = "checkbox_scale")
-    
+//    val checkboxScale by animateFloatAsState(if (checked) 1.1f else 1f, label = "checkbox_scale")
+
     Box(
         modifier = modifier
             .size(20.dp)
-            .scale(checkboxScale)
+//            .scale(checkboxScale)
             .clip(CircleShape)
             .background(if (checked) checkedColor else Color.Transparent)
             .border(1.5.dp, if (checked) checkedColor else uncheckedColor, CircleShape)
@@ -333,7 +333,7 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                             Box(
                                 modifier = Modifier
                                     .weight(columnId)
-                                    .background(idColumnBackground)
+//                                    .background(idColumnBackground)
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {

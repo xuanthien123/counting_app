@@ -63,7 +63,7 @@ class PersonsViewModel @Inject constructor(
 
     private val _betLevel = mutableIntStateOf(1)
     val betLevel: State<Int> = _betLevel
-    
+
     private val _showCurrency = mutableStateOf(false)
     val showCurrency: State<Boolean> = _showCurrency
 
@@ -147,7 +147,7 @@ class PersonsViewModel @Inject constructor(
                 gameInfo = updatedInfo
                 _state.value = state.value.copy(gameInfo = updatedInfo, selectedGameId = newGameId)
             }
-            
+
             state.value.selectedGameId?.let { getPersons(it) }
         }
     }
