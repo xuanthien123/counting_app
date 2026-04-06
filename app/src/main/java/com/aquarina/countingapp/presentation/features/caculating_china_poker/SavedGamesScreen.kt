@@ -68,7 +68,7 @@ fun SavedGamesDialog(
                         val firstVisible = visibleItems.first()
                         val averageSize = visibleItems.map { it.size }.average()
                         val spacingPx = with(density) { 12.dp.toPx() }
-                        
+
                         // Approximate distance to the target item from current viewport start
                         val distanceToItem = (index - firstVisible.index) * (averageSize + spacingPx) - firstVisible.offset
                         

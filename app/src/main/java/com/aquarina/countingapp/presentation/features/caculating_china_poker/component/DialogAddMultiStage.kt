@@ -35,12 +35,12 @@ fun DialogAddMultiStage(viewModel: PersonsViewModel = hiltViewModel()) {
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.showDialogAddMultiStage(false) },
-            title = { 
+            title = {
                 Text(
                     text = "Thêm nhiều ván",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
-                ) 
+                )
             },
             text = {
                 Column(
@@ -53,7 +53,7 @@ fun DialogAddMultiStage(viewModel: PersonsViewModel = hiltViewModel()) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
-                    
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -116,18 +116,18 @@ fun NumberPickerWheel(
 ) {
     val itemWidth = 60.dp
     val itemWidthPx = with(LocalDensity.current) { itemWidth.toPx() }
-    
+
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (value - range.first))
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     val haptic = LocalHapticFeedback.current
-    
+
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
 
     // Determine center index based on scroll position
     val centerIndex by remember {
         derivedStateOf {
-            listState.firstVisibleItemIndex + 
-            if (listState.firstVisibleItemScrollOffset > itemWidthPx / 2) 1 else 0
+            listState.firstVisibleItemIndex +
+                    if (listState.firstVisibleItemScrollOffset > itemWidthPx / 2) 1 else 0
         }
     }
 
@@ -162,7 +162,7 @@ fun NumberPickerWheel(
     ) {
         if (containerWidthPx > 0) {
             val sidePadding = with(LocalDensity.current) { (containerWidthPx / 2).toDp() - (itemWidth / 2) }
-            
+
             LazyRow(
                 state = listState,
                 flingBehavior = flingBehavior,
@@ -173,7 +173,7 @@ fun NumberPickerWheel(
                 items(range.last - range.first + 1) { index ->
                     val number = range.first + index
                     val distance = abs(centerIndex - index)
-                    
+
                     val scale by animateFloatAsState(
                         targetValue = when {
                             distance == 0 -> 1.4f

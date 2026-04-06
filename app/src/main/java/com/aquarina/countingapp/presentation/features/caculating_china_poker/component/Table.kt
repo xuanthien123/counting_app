@@ -1,7 +1,6 @@
 package com.aquarina.countingapp.presentation.features.caculating_china_poker.component
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +31,7 @@ import coil.request.ImageRequest
 import com.aquarina.countingapp.R
 import com.aquarina.countingapp.presentation.components.formatToReadable
 import com.aquarina.countingapp.presentation.features.caculating_china_poker.PersonsViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun RowScope.TableCell(
@@ -98,12 +97,9 @@ private fun SelectionCheckbox(
     val uncheckedColor = if (isHeader) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outline
     val checkmarkColor = if (isHeader) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onPrimary
 
-//    val checkboxScale by animateFloatAsState(if (checked) 1.1f else 1f, label = "checkbox_scale")
-
     Box(
         modifier = modifier
             .size(20.dp)
-//            .scale(checkboxScale)
             .clip(CircleShape)
             .background(if (checked) checkedColor else Color.Transparent)
             .border(1.5.dp, if (checked) checkedColor else uncheckedColor, CircleShape)
@@ -160,6 +156,23 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
 
     var previousStageCount by remember { mutableIntStateOf(numberOfStage) }
     var isInitialized by remember { mutableStateOf(false) }
+
+    // Use a secondary state to control how many items are "visible" to the UI initially
+    var visibleItemCount by remember { mutableIntStateOf(0) }
+
+    // Reset and progressively load items when the stage list changes significantly
+    LaunchedEffect(state.stageIds.size) {
+        if (state.stageIds.size > visibleItemCount) {
+            // If new items were added, we progressively show them
+            while (visibleItemCount < state.stageIds.size) {
+                visibleItemCount++
+                delay(10) // Fast delay for "line to line" rendering effect
+            }
+        } else {
+            // If items were deleted or it's a refresh, just sync
+            visibleItemCount = state.stageIds.size
+        }
+    }
 
     // Auto-scroll to bottom only when number of stages increases AND it's not the initial load
     LaunchedEffect(numberOfStage) {
@@ -278,25 +291,20 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                     state = listState,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Only show items up to visibleItemCount to achieve line-to-line rendering
+                    val visibleStages = state.stageIds.take(visibleItemCount)
+
                     itemsIndexed(
-                        items = state.stageIds,
+                        items = visibleStages,
                         key = { _, id -> id }
                     ) { stageIndex, _ ->
                         val isSelected = state.selectedStages.contains(stageIndex)
                         
                         // Row Background Color Animation
-                        val rowBackground by animateColorAsState(
+                        val rowBackground by androidx.compose.animation.animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else Color.Transparent,
                             animationSpec = tween(300),
                             label = "row_bg"
-                        )
-
-                        // ID Column Background Animation
-                        val idColumnBackground by animateColorAsState(
-                            targetValue = if (isSelected || state.isSelectionMode) 
-                                Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            animationSpec = tween(300),
-                            label = "id_column_bg"
                         )
 
                         Row(
@@ -333,7 +341,6 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                             Box(
                                 modifier = Modifier
                                     .weight(columnId)
-//                                    .background(idColumnBackground)
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {

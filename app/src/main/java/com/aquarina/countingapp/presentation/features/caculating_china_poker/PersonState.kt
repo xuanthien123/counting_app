@@ -10,6 +10,7 @@ data class PersonState(
     val userTags: List<UserTag> = emptyList(),
     val selectedTagIds: Set<Int> = emptySet(),
     val isProcessing: Boolean = false,
+    val isLoading: Boolean = false,
     val highlightedPersonId: Int? = null,
     val gameInfo: GameInfo? = null,
     val savedGames: List<GameSaved> = emptyList(),

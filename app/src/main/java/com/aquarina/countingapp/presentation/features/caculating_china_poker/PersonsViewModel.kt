@@ -101,9 +101,12 @@ class PersonsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            _state.value = state.value.copy(isLoading = true)
             getGameInfoAndInitialize()
             getUserTags()
             getSavedGames()
+//            delay(300)
+            _state.value = _state.value.copy(isLoading = false)
         }
         try {
             // Specify Google TTS engine package

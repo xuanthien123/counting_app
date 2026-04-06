@@ -44,8 +44,6 @@ import com.aquarina.countingapp.domain.model.SoundConfig
 import com.aquarina.countingapp.domain.model.MilestoneConfig
 import com.aquarina.countingapp.domain.model.AchievementConfig
 import com.aquarina.countingapp.domain.model.defaultSoundConfigs
-import com.aquarina.countingapp.presentation.features.caculating_china_poker.availableIcons
-import com.aquarina.countingapp.presentation.features.caculating_china_poker.getIconByName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
