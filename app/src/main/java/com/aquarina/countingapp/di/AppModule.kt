@@ -22,6 +22,14 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `GameInfo` ADD COLUMN `isSoundEnabled` INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE `GameInfo` ADD COLUMN `isVoiceEnabled` INTEGER NOT NULL DEFAULT 1")
+        }
+    }
+
     @Provides
     @Singleton
     fun providePersonDatabase(app: Application): PersonDatabase {
@@ -29,7 +37,10 @@ object AppModule {
             app,
             PersonDatabase::class.java,
             PersonDatabase.DATABASE_NAME
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(MIGRATION_9_10)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     private val MIGRATION_3_4 = object : Migration(3, 4) {

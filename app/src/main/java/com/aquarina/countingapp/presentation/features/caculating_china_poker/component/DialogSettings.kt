@@ -62,6 +62,8 @@ fun DialogSettings(
     var titleIcon by remember { mutableStateOf(viewModel.titleIcon.value) }
     var betLevel by remember { mutableIntStateOf(viewModel.betLevel.value) }
     var showCurrency by remember { mutableStateOf(viewModel.showCurrency.value) }
+    var isSoundEnabled by remember { mutableStateOf(viewModel.isSoundEnabled.value) }
+    var isVoiceEnabled by remember { mutableStateOf(viewModel.isVoiceEnabled.value) }
 
     var pendingSoundKey by remember { mutableStateOf<String?>(null) }
     val soundPickerLauncher = rememberLauncherForActivityResult(
@@ -128,7 +130,9 @@ fun DialogSettings(
                                         title = title,
                                         titleIcon = titleIcon,
                                         betLevel = betLevel,
-                                        showCurrency = showCurrency
+                                        showCurrency = showCurrency,
+                                        isSoundEnabled = isSoundEnabled,
+                                        isVoiceEnabled = isVoiceEnabled
                                     )
                                     onDismiss()
                                 },
@@ -181,7 +185,11 @@ fun DialogSettings(
                                     betLevel = betLevel,
                                     onBetLevelChange = { betLevel = it },
                                     showCurrency = showCurrency,
-                                    onShowCurrencyChange = { showCurrency = it }
+                                    onShowCurrencyChange = { showCurrency = it },
+                                    isSoundEnabled = isSoundEnabled,
+                                    onSoundEnabledChange = { isSoundEnabled = it },
+                                    isVoiceEnabled = isVoiceEnabled,
+                                    onVoiceEnabledChange = { isVoiceEnabled = it }
                                 )
                                 1 -> SoundSettingsList(
                                     configs = soundConfigs,
@@ -282,7 +290,11 @@ fun GeneralSettings(
     betLevel: Int,
     onBetLevelChange: (Int) -> Unit,
     showCurrency: Boolean,
-    onShowCurrencyChange: (Boolean) -> Unit
+    onShowCurrencyChange: (Boolean) -> Unit,
+    isSoundEnabled: Boolean,
+    onSoundEnabledChange: (Boolean) -> Unit,
+    isVoiceEnabled: Boolean,
+    onVoiceEnabledChange: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -298,42 +310,38 @@ fun GeneralSettings(
                 shape = RoundedCornerShape(12.dp),
                 leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }
             )
-//
-//            Text("Chọn biểu tượng hiển thị", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-//
-//            LazyVerticalGrid(
-//                columns = GridCells.Adaptive(minSize = 56.dp),
-//                modifier = Modifier.heightIn(max = 240.dp),
-//                contentPadding = PaddingValues(2.dp),
-//                horizontalArrangement = Arrangement.spacedBy(8.dp),
-//                verticalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-//                items(availableIcons) { iconName ->
-//                    val icon = getIconByName(iconName)
-//                    val isSelected = iconName == selectedIcon
-//
-//                    Box(
-//                        modifier = Modifier
-//                            .aspectRatio(1f)
-//                            .clip(RoundedCornerShape(12.dp))
-//                            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-//                            .border(
-//                                width = if (isSelected) 2.dp else 1.dp,
-//                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-//                                shape = RoundedCornerShape(12.dp)
-//                            )
-//                            .clickable { onIconSelect(iconName) },
-//                        contentAlignment = Alignment.Center
-//                    ) {
-//                        Icon(
-//                            imageVector = icon,
-//                            contentDescription = iconName,
-//                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-//                            modifier = Modifier.size(24.dp)
-//                        )
-//                    }
-//                }
-//            }
+        }
+
+        SettingSection("Âm thanh & Lời thoại", Icons.Default.VolumeUp) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Hiệu ứng âm thanh", fontWeight = FontWeight.Medium)
+                    Text("Bật/tắt âm thanh khi tăng/giảm hạng", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(
+                    checked = isSoundEnabled,
+                    onCheckedChange = onSoundEnabledChange
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Lời thoại thông báo", fontWeight = FontWeight.Medium)
+                    Text("Bật/tắt giọng đọc thông báo thành tựu", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(
+                    checked = isVoiceEnabled,
+                    onCheckedChange = onVoiceEnabledChange
+                )
+            }
         }
 
         SettingSection("Cấu hình mức cược", Icons.Default.Payments) {

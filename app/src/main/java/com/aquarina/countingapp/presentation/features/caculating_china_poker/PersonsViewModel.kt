@@ -67,6 +67,12 @@ class PersonsViewModel @Inject constructor(
     private val _showCurrency = mutableStateOf(false)
     val showCurrency: State<Boolean> = _showCurrency
 
+    private val _isSoundEnabled = mutableStateOf(true)
+    val isSoundEnabled: State<Boolean> = _isSoundEnabled
+
+    private val _isVoiceEnabled = mutableStateOf(true)
+    val isVoiceEnabled: State<Boolean> = _isVoiceEnabled
+
     private val _title = mutableStateOf("Tính Tiền")
     val title: State<String> = _title
 
@@ -138,6 +144,8 @@ class PersonsViewModel @Inject constructor(
         gameInfo?.let { info ->
             _betLevel.intValue = info.betLevel
             _showCurrency.value = info.showCurrency
+            _isSoundEnabled.value = info.isSoundEnabled
+            _isVoiceEnabled.value = info.isVoiceEnabled
             _title.value = info.title
             _titleIcon.value = info.titleIcon
             _state.value = state.value.copy(gameInfo = info, selectedGameId = info.selectedGameId)
@@ -218,8 +226,10 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun speak(text: String, queueMode: Int = TextToSpeech.QUEUE_ADD, utteranceId: String? = null) {
-        if (isTtsReady) {
+        if (isTtsReady && _isVoiceEnabled.value) {
             tts?.speak(text, queueMode, null, utteranceId)
+        } else {
+            ttsDeferred?.complete(utteranceId ?: "")
         }
     }
 
@@ -253,7 +263,7 @@ class PersonsViewModel @Inject constructor(
                     
                     val utteranceId = "all_info_${person.name}_${System.currentTimeMillis()}"
 
-                    if (isTtsReady) {
+                    if (isTtsReady && _isVoiceEnabled.value) {
                         ttsDeferred = CompletableDeferred()
                         speak("${person.name} $achievementText, $scoreText", TextToSpeech.QUEUE_FLUSH, utteranceId)
                         withTimeoutOrNull(5000) { ttsDeferred?.await() }
@@ -323,6 +333,7 @@ class PersonsViewModel @Inject constructor(
     }
 
     private suspend fun playSound(rawName: String, durationLimit: Long? = null, startTime: Int? = null, customUri: String? = null) {
+        if (!_isSoundEnabled.value) return
         val deferred = CompletableDeferred<Unit>()
         mediaPlayer?.stop()
         mediaPlayer?.release()
@@ -391,7 +402,7 @@ class PersonsViewModel @Inject constructor(
         } ?: return false
 
         val message = config.message.replace("{name}", name)
-        if (isTtsReady) {
+        if (isTtsReady && _isVoiceEnabled.value) {
             val utteranceId = "milestone_${name}_${System.currentTimeMillis()}"
             ttsDeferred = CompletableDeferred()
             speak(message, TextToSpeech.QUEUE_ADD, utteranceId)
@@ -611,7 +622,9 @@ class PersonsViewModel @Inject constructor(
         title: String? = null,
         titleIcon: String? = null,
         betLevel: Int? = null,
-        showCurrency: Boolean? = null
+        showCurrency: Boolean? = null,
+        isSoundEnabled: Boolean? = null,
+        isVoiceEnabled: Boolean? = null
     ) {
         viewModelScope.launch {
             var updated = gameInfo?.copy(soundConfigs = soundConfigs, milestoneConfigs = milestoneConfigs)
@@ -622,6 +635,8 @@ class PersonsViewModel @Inject constructor(
             titleIcon?.let { updated = updated.copy(titleIcon = it); _titleIcon.value = it }
             betLevel?.let { updated = updated.copy(betLevel = it); _betLevel.intValue = it }
             showCurrency?.let { updated = updated.copy(showCurrency = it); _showCurrency.value = it }
+            isSoundEnabled?.let { updated = updated.copy(isSoundEnabled = it); _isSoundEnabled.value = it }
+            isVoiceEnabled?.let { updated = updated.copy(isVoiceEnabled = it); _isVoiceEnabled.value = it }
 
             personUseCases.updateGameInfo(updated)
             gameInfo = updated
@@ -634,7 +649,7 @@ class PersonsViewModel @Inject constructor(
     }
 
     fun speakPreview(name: String, message: String) {
-        if (isTtsReady) {
+        if (isTtsReady && _isVoiceEnabled.value) {
             speak(message.replace("{name}", name), TextToSpeech.QUEUE_ADD, "preview")
         }
     }

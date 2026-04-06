@@ -10,6 +10,8 @@ data class GameInfo(
     val titleIcon: String = "Calculate",
     val betLevel: Int = 1,
     val showCurrency: Boolean = false,
+    val isSoundEnabled: Boolean = true,
+    val isVoiceEnabled: Boolean = true,
     val soundConfigs: List<SoundConfig> = defaultSoundConfigs,
     val milestoneConfigs: List<MilestoneConfig> = defaultMilestoneConfigs,
     val achievementConfigs: List<AchievementConfig> = defaultAchievementConfigs,
