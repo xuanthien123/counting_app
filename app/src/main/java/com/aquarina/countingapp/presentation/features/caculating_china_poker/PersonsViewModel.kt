@@ -57,6 +57,12 @@ class PersonsViewModel @Inject constructor(
     val showConfirmDialog: State<Boolean> = _showConfirmDialog
 
     private var deletedPerson: Person? = null
+    
+    // History management
+    private val undoStack = mutableListOf<List<Person>>()
+    private val redoStack = mutableListOf<List<Person>>()
+    private val MAX_HISTORY_SIZE = 20
+
     private var getPersonJob: Job? = null
     private var getUserTagsJob: Job? = null
     private var getSavedGamesJob: Job? = null
@@ -411,11 +417,22 @@ class PersonsViewModel @Inject constructor(
         return true
     }
 
+    private fun saveStateForUndo() {
+        val currentState = state.value.persons.map { it.copy() }
+        undoStack.add(currentState)
+        if (undoStack.size > MAX_HISTORY_SIZE) {
+            undoStack.removeAt(0)
+        }
+        redoStack.clear()
+        _state.value = state.value.copy(canUndo = true, canRedo = false)
+    }
+
     fun onEvent(event: PersonEvent) {
         when (event) {
             is PersonEvent.OrderPersons -> {}
             is PersonEvent.DeletePerson -> {
                 viewModelScope.launch {
+                    saveStateForUndo()
                     personUseCases.deletePerson(event.person)
                     deletedPerson = event.person
                 }
@@ -424,6 +441,7 @@ class PersonsViewModel @Inject constructor(
                 viewModelScope.launch { 
                     state.value.selectedGameId?.let { gameId ->
                         personUseCases.deleteAllPerson(gameId)
+                        clearHistory()
                     }
                 }
             }
@@ -433,12 +451,49 @@ class PersonsViewModel @Inject constructor(
                     deletedPerson = null
                 }
             }
+            is PersonEvent.Undo -> {
+                if (undoStack.isNotEmpty()) {
+                    viewModelScope.launch {
+                        val currentState = state.value.persons.map { it.copy() }
+                        redoStack.add(currentState)
+                        
+                        val previousState = undoStack.removeAt(undoStack.size - 1)
+                        previousState.forEach { person ->
+                            personUseCases.updatePerson(person)
+                        }
+                        
+                        _state.value = state.value.copy(
+                            canUndo = undoStack.isNotEmpty(),
+                            canRedo = true
+                        )
+                    }
+                }
+            }
+            is PersonEvent.Redo -> {
+                if (redoStack.isNotEmpty()) {
+                    viewModelScope.launch {
+                        val currentState = state.value.persons.map { it.copy() }
+                        undoStack.add(currentState)
+                        
+                        val nextState = redoStack.removeAt(redoStack.size - 1)
+                        nextState.forEach { person ->
+                            personUseCases.updatePerson(person)
+                        }
+                        
+                        _state.value = state.value.copy(
+                            canUndo = true,
+                            canRedo = redoStack.isNotEmpty()
+                        )
+                    }
+                }
+            }
             is PersonEvent.UpdatePerson -> {
                 viewModelScope.launch { personUseCases.updatePerson(event.person) }
             }
             is PersonEvent.CreatePerson -> {
                 viewModelScope.launch { 
                     state.value.selectedGameId?.let { gameId ->
+                        saveStateForUndo()
                         personUseCases.insertPerson(event.person.copy(gameSavedId = gameId))
                     }
                 }
@@ -513,6 +568,7 @@ class PersonsViewModel @Inject constructor(
                         personUseCases.updateGameInfo(it)
                         gameInfo = it
                         nextStageId = 0
+                        clearHistory()
                         _state.value = state.value.copy(
                             gameInfo = it,
                             selectedGameId = event.gameId,
@@ -523,6 +579,12 @@ class PersonsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun clearHistory() {
+        undoStack.clear()
+        redoStack.clear()
+        _state.value = state.value.copy(canUndo = false, canRedo = false)
     }
 
     private fun getPersons(gameId: Int) {
@@ -571,6 +633,7 @@ class PersonsViewModel @Inject constructor(
     fun editPerson(name: String) {
         editingId.value?.let { index ->
             if (index in state.value.persons.indices) {
+                saveStateForUndo()
                 onEvent(PersonEvent.UpdatePerson(state.value.persons[index].copy(name = name)))
             }
         }
@@ -656,6 +719,7 @@ class PersonsViewModel @Inject constructor(
 
     fun addNewStage() {
         viewModelScope.launch {
+            saveStateForUndo()
             val currentStageIds = state.value.stageIds.toMutableList()
             currentStageIds.add(nextStageId++)
             _state.value = state.value.copy(stageIds = currentStageIds)
@@ -668,6 +732,7 @@ class PersonsViewModel @Inject constructor(
 
     fun addMultiStage(count: Int) {
         viewModelScope.launch {
+            saveStateForUndo()
             val currentStageIds = state.value.stageIds.toMutableList()
             repeat(count) { currentStageIds.add(nextStageId++) }
             _state.value = state.value.copy(stageIds = currentStageIds)
@@ -682,6 +747,7 @@ class PersonsViewModel @Inject constructor(
 
     fun deleteMultipleStages(indices: List<Int>) {
         viewModelScope.launch {
+            saveStateForUndo()
             val currentStageIds = state.value.stageIds.toMutableList()
             val sortedIndices = indices.sortedDescending()
 
@@ -746,6 +812,7 @@ class PersonsViewModel @Inject constructor(
 
     fun refreshData() {
         viewModelScope.launch {
+            saveStateForUndo()
             state.value.persons.forEach { person ->
                 personUseCases.updatePerson(person.copy(stages = emptyList(), total = 0))
             }
@@ -772,6 +839,8 @@ class PersonsViewModel @Inject constructor(
         _showDialogEditStage.value = false
         updateStageJob?.cancel()
         updateStageJob = viewModelScope.launch {
+            saveStateForUndo()
+
             val updates = state.value.persons.mapIndexedNotNull { index, person ->
                 if (index < listWinLoseState.value.size) {
                     val listStages = person.stages.toMutableList()
@@ -824,8 +893,12 @@ class PersonsViewModel @Inject constructor(
         }
     }
 
+    fun undo() = onEvent(PersonEvent.Undo)
+    fun redo() = onEvent(PersonEvent.Redo)
+
     fun deleteStage() {
         viewModelScope.launch {
+            saveStateForUndo()
             val currentStageIds = state.value.stageIds.toMutableList()
             if (stage < currentStageIds.size) {
                 currentStageIds.removeAt(stage)
@@ -844,6 +917,7 @@ class PersonsViewModel @Inject constructor(
 
     fun deleteUser(user: Person) {
         viewModelScope.launch {
+            saveStateForUndo()
             state.value.persons.forEach { person ->
                 val total = person.stages.sum()
                 personUseCases.updatePerson(person.copy(stages = listOf(total), total = total))

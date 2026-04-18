@@ -9,6 +9,8 @@ sealed class PersonEvent {
     data class UpdatePerson(val person: Person) : PersonEvent()
     data class DeletePerson(val person: Person) : PersonEvent()
     object RestorePerson : PersonEvent()
+    object Undo : PersonEvent()
+    object Redo : PersonEvent()
     data class CreatePerson(val person: Person) : PersonEvent()
     object DeleteAllPerson : PersonEvent()
 

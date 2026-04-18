@@ -43,6 +43,7 @@ fun SavedGamesDialog(
 ) {
     val state = viewModel.state.value
     var editingGame by remember { mutableStateOf<GameSaved?>(null) }
+    var isCreatingNewGame by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     var hasInitialScrolled by rememberSaveable { mutableStateOf(false) }
     val density = LocalDensity.current
@@ -183,8 +184,7 @@ fun SavedGamesDialog(
                     if (!isSelectionMode) {
                         ExtendedFloatingActionButton(
                             onClick = {
-                                viewModel.onEvent(PersonEvent.CreateGameSaved(null))
-                                onDismiss()
+                                isCreatingNewGame = true
                             },
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -270,6 +270,19 @@ fun SavedGamesDialog(
                         viewModel.onEvent(PersonEvent.UpdateGameSaved(it.copy(name = name)))
                     }
                     editingGame = null
+                }
+            )
+        }
+
+        if (isCreatingNewGame) {
+            GameNameDialog(
+                title = "Tạo trận đấu mới",
+                initialName = "",
+                onDismiss = { isCreatingNewGame = false },
+                onConfirm = { name ->
+                    viewModel.onEvent(PersonEvent.CreateGameSaved(name))
+                    isCreatingNewGame = false
+                    onDismiss()
                 }
             )
         }

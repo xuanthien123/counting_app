@@ -17,5 +17,7 @@ data class PersonState(
     val selectedGameId: Int? = null,
     val isSelectionMode: Boolean = false,
     val selectedStages: Set<Int> = emptySet(),
-    val stageIds: List<Int> = emptyList()
+    val stageIds: List<Int> = emptyList(),
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false
 )

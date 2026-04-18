@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -436,8 +438,64 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                     } else {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Undo/Redo Split Button
+                            Row(
+                                modifier = Modifier
+                                    .width(96.dp)
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple(),
+                                            enabled = state.canUndo && !isProcessing) { viewModel.undo() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                                        contentDescription = "Hoàn tác",
+                                        tint = if (state.canUndo && !isProcessing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                VerticalDivider(
+                                    modifier = Modifier.height(20.dp),
+                                    thickness = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple(),
+                                            enabled = state.canRedo && !isProcessing) { viewModel.redo() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Redo,
+                                        contentDescription = "Tiếp tục",
+                                        tint = if (state.canRedo && !isProcessing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
                             Button(
                                 onClick = { viewModel.addNewStage() },
                                 enabled = !isProcessing,
@@ -447,8 +505,8 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                                 contentPadding = PaddingValues(vertical = 12.dp)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(6.6.dp))
-                                Text("Thêm 1 ván", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Ván mới", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
 
                             Button(
@@ -460,8 +518,8 @@ fun TableScreen(viewModel: PersonsViewModel = hiltViewModel()) {
                                 contentPadding = PaddingValues(vertical = 12.dp)
                             ) {
                                 Icon(Icons.Default.LibraryAdd, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(6.6.dp))
-                                Text("Thêm nhiều ván", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Nhiều ván", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
